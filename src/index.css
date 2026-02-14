@@ -1,0 +1,54 @@
+@import url('https://fonts.googleapis.com/css2?family=Ubuntu:ital,wght@0,300;0,400;0,500;0,700;1,300;1,400;1,500;1,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Creepster&family=Ubuntu:ital,wght@0,300;0,400;0,500;0,700;1,300;1,400;1,500;1,700&display=swap');
+@import "tailwindcss";
+
+html {
+  color-scheme: dark;
+  font-family: 'Ubuntu', 'Creepster', sans-serif !important;
+}
+
+body {
+  @apply bg-gray-900 text-gray-100;
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.6s ease-out forwards;
+}
+
+.animation-delay-150 { animation-delay: 150ms; }
+.animation-delay-300 { animation-delay: 300ms; }
+.animation-delay-500 { animation-delay: 500ms; }
+
+/* Sleek scrollbar — use on overflow-auto/overflow-x-auto/overflow-y-auto containers */
+.scrollbar-sleek {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(75 85 99) transparent;
+}
+.scrollbar-sleek::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scrollbar-sleek::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-sleek::-webkit-scrollbar-thumb {
+  background-color: rgb(75 85 99);
+  border-radius: 3px;
+}
+.scrollbar-sleek::-webkit-scrollbar-thumb:hover {
+  background-color: rgb(107 114 128);
+}
+.scrollbar-sleek::-webkit-scrollbar-corner {
+  background: transparent;
+}
