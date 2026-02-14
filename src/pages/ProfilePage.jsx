@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext'
 import apiHelper from '../helper/apiHelper'
 import Modal from '../components/Modal'
 import PreferenceForm from '../components/forms/PreferenceForm'
+import FeedbackModal from '../components/FeedbackModal'
 
 function getCroppedBlob(image, crop) {
   const canvas = document.createElement('canvas')
@@ -28,9 +29,10 @@ function getCroppedBlob(image, crop) {
   })
 }
 
-export default function ProfilePage() {
+function ProfilePage() {
   const { isLoggedIn, email, profileUrl, setProfileUrl, authLoading, verifyToken } = useAuth()
   const [cropModalOpen, setCropModalOpen] = useState(false)
+  const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [previewUrl, setPreviewUrl] = useState(null)
   const [crop, setCrop] = useState(null)
   const [uploading, setUploading] = useState(false)
@@ -150,6 +152,13 @@ export default function ProfilePage() {
           <div className="pt-4 flex flex-wrap gap-3">
             <button
               type="button"
+              onClick={() => setFeedbackOpen(true)}
+              className="px-4 py-2 rounded-lg bg-gray-700 text-gray-200 hover:bg-amber-500 hover:text-gray-900 font-medium text-sm transition-colors"
+            >
+              Give feedback
+            </button>
+            <button
+              type="button"
               onClick={handleLogout}
               className="px-4 py-2 rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600/30 font-medium text-sm transition-colors"
             >
@@ -214,6 +223,10 @@ export default function ProfilePage() {
           </div>
         </div>
       </Modal>
+
+      <FeedbackModal open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
     </div>
   )
 }
+
+export default ProfilePage

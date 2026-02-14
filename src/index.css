@@ -52,3 +52,12 @@ body {
 .scrollbar-sleek::-webkit-scrollbar-corner {
   background: transparent;
 }
+
+/* Infinite ticker: duplicate content, animate -50% for seamless loop */
+@keyframes infinite-ticker {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.infinite-ticker-inner {
+  animation: infinite-ticker var(--ticker-duration, 40s) linear infinite;
+}

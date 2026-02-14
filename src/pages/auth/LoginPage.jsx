@@ -33,6 +33,11 @@ const LoginPage = () => {
       setSearchParams({}, { replace: true })
       return
     }
+    if (error === 'registration_closed') {
+      toast.error('Registration is closed. Contact admin.')
+      setSearchParams({}, { replace: true })
+      return
+    }
     if (token) {
       localStorage.setItem('fc-token', token)
       setSearchParams({}, { replace: true })
@@ -110,7 +115,7 @@ const LoginPage = () => {
 
   if (resetStep === 'forgot') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-900">
+      <div className="min-h-screen flex items-center justify-center bg-gray-900 px-4">
         <div className="bg-gray-800 border border-gray-700 p-6 rounded-lg shadow-xl w-full max-w-sm">
           <div className="flex justify-between">
             <h1 className="text-xl font-semibold mb-4 text-gray-100">Reset password</h1>
@@ -152,7 +157,7 @@ const LoginPage = () => {
 
   if (resetStep === 'reset') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-900">
+      <div className="min-h-screen flex items-center justify-center bg-gray-900 px-4">
         <div className="bg-gray-800 border border-gray-700 p-6 rounded-lg shadow-xl w-full max-w-sm">
           <div className="flex justify-between">
             <h1 className="text-xl font-semibold mb-4 text-gray-100">Set new password</h1>
@@ -227,7 +232,7 @@ const LoginPage = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-900">
+    <div className="min-h-screen flex items-center justify-center bg-gray-900 px-4">
       <div className="bg-gray-800 border border-gray-700 p-6 rounded-lg shadow-xl w-full max-w-sm">
         <div className='flex justify-between'>
 

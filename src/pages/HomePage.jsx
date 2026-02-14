@@ -4,6 +4,8 @@ import apiHelper from '../helper/apiHelper'
 import Top10Popular from '../components/Top10Popular'
 import Poster from '../components/Poster'
 import PosterGrid from '../components/PosterGrid'
+import InfiniteTicker from '../components/InfiniteTicker'
+import FeedbackModal from '../components/FeedbackModal'
 import { usePreferences } from '../context/PreferencesContext'
 
 const TOP_N = 10
@@ -27,6 +29,7 @@ const emptyTv = { now_playing: [], popular: [], top_rated: [] }
 export default function HomePage() {
   const { preferences } = usePreferences()
   const [activeTab, setActiveTab] = useState('movies')
+  const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [movieData, setMovieData] = useState(emptyMovies)
   const [tvData, setTvData] = useState(emptyTv)
   const [loading, setLoading] = useState(true)
@@ -101,39 +104,67 @@ export default function HomePage() {
     <div className="min-h-screen bg-gray-900 text-white">
       <Top10Popular movies={popularTop10} loading={loading} error={error} />
 
-      <div className="px-4 md:px-6 lg:px-8 py-10 space-y-8 mt-[20rem] sm:mt-[20rem] md:mt-[10rem] xl:mt-[2rem]">
-        <div className="relative z-10 flex flex-wrap items-center gap-3 mb-2 md:mx-[5rem]">
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setActiveTab('movies')}
-              className={`cursor-pointer px-4 py-2 rounded-lg font-medium transition-colors ${
-                activeTab === 'movies'
-                  ? 'bg-amber-500 text-gray-900'
-                  : 'bg-gray-800 text-gray-400 hover:text-white'
-              }`}
+      <div className='mt-[5rem] sm:mt-[0rem] md:mt-[16rem] xl:mt-[2rem]'>
+
+        {preferences.showPromoTicker !== false && (
+          <>
+            <InfiniteTicker
+              className="py-2.5 bg-amber-800/30 border-y border-amber-500/30 text-gray-300 text-sm font-bold"
+              duration={250}
+              repeatPerCopy={12}
             >
-              Movies
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('tv')}
-              className={`cursor-pointer px-4 py-2 rounded-lg font-medium transition-colors ${
-                activeTab === 'tv'
-                  ? 'bg-amber-500 text-gray-900'
-                  : 'bg-gray-800 text-gray-400 hover:text-white'
-              }`}
-            >
-              TV
-            </button>
+              <span className="text-amber-400/90 font-bold">✨ Log in for no ads</span>
+              <span className="text-gray-500">·</span>
+              <button
+                type="button"
+                onClick={() => setFeedbackOpen(true)}
+                className="bg-transparent border-none p-0 text-inherit font-inherit cursor-pointer hover:text-amber-400 transition-colors"
+              >
+                Please give us your feedback here
+              </button>
+              <span className="text-gray-500">·</span>
+              <span>You can turn this off in Settings if you have an account</span>
+              <span className="text-gray-500">·</span>
+            </InfiniteTicker>
+            <FeedbackModal open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
+          </>
+        )}
+
+        <div className="px-4 md:px-6 lg:px-8 py-4 space-y-8">
+          <div className="relative z-10 flex flex-wrap items-center gap-3 mb-2 md:mx-[5rem]">
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setActiveTab('movies')}
+                className={`cursor-pointer px-4 py-2 rounded-lg font-medium transition-colors ${
+                  activeTab === 'movies'
+                    ? 'bg-amber-500 text-gray-900'
+                    : 'bg-gray-800 text-gray-400 hover:text-white'
+                }`}
+              >
+                Movies
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('tv')}
+                className={`cursor-pointer px-4 py-2 rounded-lg font-medium transition-colors ${
+                  activeTab === 'tv'
+                    ? 'bg-amber-500 text-gray-900'
+                    : 'bg-gray-800 text-gray-400 hover:text-white'
+                }`}
+              >
+                TV
+              </button>
+            </div>
+            {loading && (
+              <span className="text-gray-500 text-sm flex items-center gap-2" aria-live="polite">
+                <span className="inline-block w-4 h-4 border-2 border-gray-500 border-t-amber-500 rounded-full animate-spin" aria-hidden />
+                Loading…
+              </span>
+            )}
           </div>
-          {loading && (
-            <span className="text-gray-500 text-sm flex items-center gap-2" aria-live="polite">
-              <span className="inline-block w-4 h-4 border-2 border-gray-500 border-t-amber-500 rounded-full animate-spin" aria-hidden />
-              Loading…
-            </span>
-          )}
-        </div>
+      </div>
+
 
         {rows.map(({ key, title, showAll }) => {
           const list = data[key] ?? []
@@ -142,7 +173,7 @@ export default function HomePage() {
           return (
             <section
               key={`${activeTab}-${key}`}
-              className="md:mx-[5rem] py-8 border-b border-gray-500/50 last:border-b-0"
+              className="md:mx-[5rem] py-8 border-b border-gray-500/50 last:border-b-0 mx-4"
             >
               <div className="flex items-center justify-between gap-4 mb-4">
                 <h2 className="text-[2rem] font-semibold">{title.toUpperCase()}</h2>

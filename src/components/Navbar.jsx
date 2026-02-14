@@ -6,7 +6,6 @@ import MultiSearch from './MultiSearch'
 
 function Navbar() {
   const { isLoggedIn, email, authLoading, profileUrl } = useAuth()
-  //TODO : tf is this logo, check image context later
   const { logo } = useImage()
   const [mobileOpen, setMobileOpen] = useState(false)
 

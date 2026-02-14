@@ -9,6 +9,7 @@ export const DEFAULT_PREFERENCES = {
   showWatchButton: true,
   showTopPickOnHome: true,
   showPosterTitle: false,
+  showPromoTicker: true,
 }
 
 const PreferencesContext = createContext(null)
@@ -25,6 +26,7 @@ function loadFromStorage() {
       showWatchButton: typeof parsed.showWatchButton === 'boolean' ? parsed.showWatchButton : DEFAULT_PREFERENCES.showWatchButton,
       showTopPickOnHome: typeof parsed.showTopPickOnHome === 'boolean' ? parsed.showTopPickOnHome : DEFAULT_PREFERENCES.showTopPickOnHome,
       showPosterTitle: typeof parsed.showPosterTitle === 'boolean' ? parsed.showPosterTitle : DEFAULT_PREFERENCES.showPosterTitle,
+      showPromoTicker: typeof parsed.showPromoTicker === 'boolean' ? parsed.showPromoTicker : DEFAULT_PREFERENCES.showPromoTicker,
     }
   } catch {
     return DEFAULT_PREFERENCES

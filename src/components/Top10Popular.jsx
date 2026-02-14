@@ -129,7 +129,7 @@ export default function Top10Popular({ movies = [], loading = false, error = nul
           />
         )}
         <div className="absolute inset-0 from-gray-900 via-gray-950/60 to-transparent bg-gradient-to-t pointer-events-none" />
-        <div className="absolute bottom-[-20rem] sm:bottom-[-15rem] md:bottom-[-13rem] xl:bottom-[-7rem] left-0 right-0 p-6 md:p-10 lg:p-14 flex flex-col justify-end pointer-events-none">
+        <div className="absolute bottom-[-5rem] sm:bottom-[-1rem] md:bottom-[-20rem] xl:bottom-[-7rem] left-0 right-0 p-6 md:p-10 lg:p-14 flex flex-col justify-end pointer-events-none">
           <div className="pointer-events-auto xl:ml-[5rem] xl:mb-[1rem] max-w-2xl">
             {/* Title */}
             <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold drop-shadow-lg">

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import apiHelper, { baseURL } from '../../helper/apiHelper'
@@ -10,6 +10,383 @@ import {
   migrateGuestSavedToAccountCustom,
   clearGuestSaved,
 } from '../../helper/savedHelper'
+
+/* ─── keyframes for Registration Closed scene ─── */
+const RC_STYLE_ID = 'rc-keyframes'
+const RC_KEYFRAMES = `
+@keyframes rc-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-16px)}}
+@keyframes rc-float-slow{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+@keyframes rc-float-delay{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+@keyframes rc-blink{0%,46%,54%,100%{transform:scaleY(1)}50%{transform:scaleY(.08)}}
+@keyframes rc-wiggle{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(4deg)}}
+@keyframes rc-swing{0%,100%{transform:rotate(-10deg)}50%{transform:rotate(10deg)}}
+@keyframes rc-pulse{0%,100%{opacity:.4;filter:blur(18px)}50%{opacity:.85;filter:blur(28px)}}
+@keyframes rc-drift{0%{transform:translate(0,0);opacity:.6}50%{opacity:1}100%{transform:translate(var(--dx),var(--dy));opacity:0}}
+@keyframes rc-spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+@keyframes rc-neon{0%,100%{text-shadow:0 0 6px rgba(251,59,59,.6),0 0 20px rgba(251,59,59,.3)}50%{text-shadow:0 0 12px rgba(251,59,59,.9),0 0 40px rgba(251,59,59,.5)}}
+@keyframes rc-shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+@keyframes rc-glow-pulse{0%,100%{box-shadow:0 0 20px rgba(251,191,36,.15)}50%{box-shadow:0 0 35px rgba(251,191,36,.35)}}
+@keyframes rc-headphone-bob{0%,100%{transform:translateY(0) rotate(0)}25%{transform:translateY(-3px) rotate(-2deg)}75%{transform:translateY(-3px) rotate(2deg)}}
+@keyframes rc-lock-glow{0%,100%{filter:drop-shadow(0 0 4px rgba(251,59,59,.4))}50%{filter:drop-shadow(0 0 12px rgba(251,59,59,.8))}}
+`
+
+/* ─── seeded random ─── */
+function rcRand(seed) {
+  let s = seed
+  return () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646 }
+}
+
+/* ─── Particles ─── */
+function RcParticles({ count = 25 }) {
+  const [items] = useState(() => {
+    const r = rcRand(77)
+    return Array.from({ length: count }, (_, i) => ({
+      id: i, left: r() * 100, top: r() * 100, size: 2 + r() * 3,
+      dur: 4 + r() * 6, delay: r() * 5,
+      dx: (r() - .5) * 100, dy: -(25 + r() * 70),
+      hue: r() > .5 ? '0' : '45',
+    }))
+  })
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden>
+      {items.map(p => (
+        <div key={p.id} className="absolute rounded-full" style={{
+          left: `${p.left}%`, top: `${p.top}%`, width: p.size, height: p.size,
+          background: `hsl(${p.hue} 80% 65%)`,
+          '--dx': `${p.dx}px`, '--dy': `${p.dy}px`,
+          animation: `rc-drift ${p.dur}s ${p.delay}s ease-out infinite`,
+        }} />
+      ))}
+    </div>
+  )
+}
+
+/* ─── Floating logos ─── */
+function RcFloatingLogos({ logo }) {
+  const inst = [
+    { left: '6%', top: '12%', size: 36, opacity: .09, durX: 20, durY: 24 },
+    { left: '82%', top: '8%', size: 44, opacity: .07, durX: 26, durY: 18 },
+    { left: '88%', top: '70%', size: 30, opacity: .08, durX: 18, durY: 22 },
+    { left: '12%', top: '75%', size: 38, opacity: .06, durX: 24, durY: 20 },
+    { left: '50%', top: '4%', size: 28, opacity: .05, durX: 22, durY: 26 },
+    { left: '70%', top: '50%', size: 20, opacity: .05, durX: 28, durY: 16 },
+    { left: '30%', top: '85%', size: 32, opacity: .07, durX: 16, durY: 24 },
+  
+    // NEW GENERATED ONES
+    { left: '18%', top: '22%', size: 40, opacity: .06, durX: 21, durY: 27 },
+    { left: '92%', top: '18%', size: 26, opacity: .05, durX: 29, durY: 20 },
+    { left: '75%', top: '30%', size: 34, opacity: .07, durX: 24, durY: 19 },
+    { left: '5%', top: '45%', size: 22, opacity: .05, durX: 18, durY: 30 },
+    { left: '40%', top: '18%', size: 30, opacity: .06, durX: 26, durY: 23 },
+    { left: '60%', top: '12%', size: 46, opacity: .08, durX: 20, durY: 28 },
+    { left: '25%', top: '55%', size: 28, opacity: .05, durX: 30, durY: 17 },
+    { left: '80%', top: '62%', size: 36, opacity: .07, durX: 22, durY: 26 },
+    { left: '55%', top: '70%', size: 24, opacity: .05, durX: 27, durY: 18 },
+    { left: '15%', top: '90%', size: 42, opacity: .06, durX: 19, durY: 25 },
+    { left: '65%', top: '88%', size: 30, opacity: .07, durX: 23, durY: 21 },
+    { left: '90%', top: '92%', size: 38, opacity: .06, durX: 25, durY: 29 },
+  
+    { left: '33%', top: '8%', size: 20, opacity: .04, durX: 32, durY: 16 },
+    { left: '47%', top: '28%', size: 44, opacity: .08, durX: 18, durY: 24 },
+    { left: '58%', top: '35%', size: 26, opacity: .05, durX: 28, durY: 19 },
+    { left: '10%', top: '60%', size: 34, opacity: .06, durX: 21, durY: 27 },
+    { left: '38%', top: '66%', size: 22, opacity: .05, durX: 30, durY: 20 },
+    { left: '72%', top: '78%', size: 40, opacity: .07, durX: 19, durY: 26 },
+    { left: '48%', top: '92%', size: 28, opacity: .06, durX: 24, durY: 18 },
+    { left: '96%', top: '40%', size: 32, opacity: .05, durX: 29, durY: 23 },
+    { left: '2%', top: '25%', size: 46, opacity: .08, durX: 17, durY: 31 },
+    { left: '85%', top: '48%', size: 24, opacity: .05, durX: 33, durY: 15 },
+  
+    { left: '22%', top: '38%', size: 30, opacity: .06, durX: 25, durY: 22 },
+    { left: '63%', top: '58%', size: 36, opacity: .07, durX: 20, durY: 29 },
+    { left: '44%', top: '48%', size: 18, opacity: .04, durX: 34, durY: 17 },
+    { left: '28%', top: '12%', size: 26, opacity: .05, durX: 27, durY: 21 },
+    { left: '78%', top: '20%', size: 32, opacity: .06, durX: 23, durY: 28 },
+    { left: '52%', top: '40%', size: 40, opacity: .08, durX: 19, durY: 24 },
+    { left: '8%', top: '82%', size: 24, opacity: .05, durX: 31, durY: 18 },
+    { left: '94%', top: '58%', size: 44, opacity: .07, durX: 22, durY: 30 },
+    { left: '36%', top: '74%', size: 20, opacity: .04, durX: 35, durY: 16 },
+    { left: '58%', top: '84%', size: 34, opacity: .06, durX: 26, durY: 20 },
+  ]
+  return <>
+    {inst.map((g, i) => (
+      <div key={i} className="absolute pointer-events-none" style={{
+        left: g.left, top: g.top,
+        animation: `rc-float ${g.durX}s ease-in-out infinite`,
+      }} aria-hidden>
+        <img src={logo} alt="" draggable={false} className="select-none" style={{
+          width: g.size, height: g.size, objectFit: 'contain',
+          opacity: g.opacity, filter: 'grayscale(.3) brightness(1.5)',
+          animation: `rc-float-slow ${g.durY}s ease-in-out infinite`,
+        }} />
+      </div>
+    ))}
+  </>
+}
+
+/* ─── Popcorn mascot with "CLOSED" sign ─── */
+function RcPopcornMascot() {
+  return (
+    <div className="relative w-28 h-36 sm:w-32 sm:h-40 cursor-pointer group"
+      style={{ animation: 'rc-float 5s ease-in-out infinite' }} title="Sorry, we're closed!">
+      {/* bucket */}
+      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-18 sm:w-22 h-18 sm:h-22 rounded-b-2xl rounded-t-lg bg-linear-to-b from-red-500 to-red-700 border-2 border-red-400/40 shadow-lg shadow-red-900/30 group-hover:scale-105 transition-transform duration-300"
+        style={{ width: '4.5rem', height: '4.5rem' }}>
+        <div className="absolute inset-x-0 top-2 h-1 bg-yellow-300/70 rounded-full mx-2" />
+        <div className="absolute inset-x-0 top-5 h-1 bg-yellow-300/70 rounded-full mx-2" />
+        {/* face */}
+        <div className="absolute top-10 left-1/2 -translate-x-1/2 flex items-center gap-2">
+          <div className="w-2.5 h-2.5 rounded-full bg-gray-900 relative">
+            <div className="absolute top-0 left-0.5 w-1 h-1 rounded-full bg-white" />
+            <div className="absolute inset-0 origin-center" style={{ animation: 'rc-blink 4s ease-in-out infinite' }}>
+              <div className="w-2.5 h-2.5 rounded-full bg-gray-900" />
+            </div>
+          </div>
+          <div className="w-2.5 h-2.5 rounded-full bg-gray-900 relative">
+            <div className="absolute top-0 left-0.5 w-1 h-1 rounded-full bg-white" />
+            <div className="absolute inset-0 origin-center" style={{ animation: 'rc-blink 4s .1s ease-in-out infinite' }}>
+              <div className="w-2.5 h-2.5 rounded-full bg-gray-900" />
+            </div>
+          </div>
+        </div>
+        <div className="absolute top-[3.2rem] left-1/2 -translate-x-1/2 w-2.5 h-1 rounded-full bg-gray-900/70" />
+      </div>
+      {/* popcorn pile */}
+      {/* <div className="absolute top-6 left-1/2 -translate-x-1/2 flex gap-0.5" style={{ animation: 'rc-wiggle 3s ease-in-out infinite' }}>
+        {[10,12,9,13,11].map((w, i) => (
+          <div key={i} className="rounded-full" style={{
+            width: w, height: w - 1,
+            background: 'radial-gradient(circle at 35% 35%, #FFFDD0, #F5DEB3 60%, #DEB887)',
+            marginTop: i % 2 === 0 ? 0 : 4,
+          }} />
+        ))}
+      </div> */}
+      {/* arm holding CLOSED sign */}
+      <div className="absolute -right-10 bottom-6 origin-left" style={{ animation: 'rc-swing 3s ease-in-out infinite' }}>
+        <div className="w-3 h-1.5 rounded-full bg-red-600 inline-block" />
+        <div className="ml-1 inline-block px-2 py-0.5 bg-red-500 rounded text-[7px] font-black text-white tracking-wider border border-red-300/50 shadow-md"
+          style={{ animation: 'rc-neon 2s ease-in-out infinite' }}>
+          CLOSED
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ─── TV mascot ─── */
+function RcTvMascot() {
+  return (
+    <div className="relative w-24 h-24 sm:w-28 sm:h-28 cursor-pointer group"
+      style={{ animation: 'rc-float-delay 5.5s .5s ease-in-out infinite' }} title="¯\\_(ツ)_/¯">
+      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-20 sm:w-24 h-16 sm:h-20 rounded-xl bg-linear-to-b from-gray-700 to-gray-800 border-2 border-gray-600/50 shadow-lg shadow-purple-900/20 group-hover:scale-105 transition-transform duration-300">
+        <div className="absolute inset-1.5 rounded-lg bg-linear-to-br from-blue-900/80 to-purple-900/80 border border-blue-500/20 overflow-hidden">
+          {[0,1,2,3].map(i => <div key={i} className="h-px bg-white/5 mt-2" />)}
+          <div className="absolute inset-0 flex items-center justify-center gap-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-sm shadow-cyan-400" />
+            <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-sm shadow-cyan-400" />
+          </div>
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-3 h-1 rounded-b-full bg-cyan-400/60" />
+        </div>
+      </div>
+      {/* glasses */}
+      <div className="absolute top-5 sm:top-4 left-1/2 -translate-x-1/2 flex items-center gap-0.5" style={{ animation: 'rc-wiggle 4s ease-in-out infinite' }}>
+        <div className="w-5 h-4 rounded-md border-2 border-amber-400/80 bg-amber-900/30" />
+        <div className="w-2 h-0.5 bg-amber-400/60" />
+        <div className="w-5 h-4 rounded-md border-2 border-amber-400/80 bg-amber-900/30" />
+      </div>
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-0.5 h-5 bg-gray-500">
+        <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-red-400 shadow-sm shadow-red-400" style={{ animation: 'rc-pulse 2s ease-in-out infinite' }} />
+      </div>
+      <div className="absolute bottom-0 left-1/2 -translate-x-[65%] w-1 h-3 bg-gray-600 rounded-b-sm" />
+      <div className="absolute bottom-0 left-1/2 translate-x-[45%] w-1 h-3 bg-gray-600 rounded-b-sm" />
+    </div>
+  )
+}
+
+/* ─── Alien mascot with headphones ─── */
+function RcAlienMascot() {
+  return (
+    <div className="relative w-20 h-24 sm:w-24 sm:h-28 cursor-pointer group"
+      style={{ animation: 'rc-float-slow 6s .3s ease-in-out infinite' }} title="Let me in!">
+      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 sm:w-14 h-10 sm:h-12 rounded-b-2xl rounded-t-lg bg-linear-to-b from-green-400 to-green-600 border border-green-300/30 shadow-lg shadow-green-900/20 group-hover:scale-105 transition-transform duration-300" />
+      <div className="absolute top-2 left-1/2 -translate-x-1/2 w-14 sm:w-16 h-10 sm:h-12 rounded-full bg-linear-to-b from-green-300 to-green-500 border border-green-200/30 shadow-md">
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
+          <div className="w-4 h-5 rounded-full bg-gray-900 border border-green-200/20 flex items-center justify-center">
+            <div className="w-2 h-2 rounded-full bg-lime-400 shadow-sm shadow-lime-400"><div className="w-0.5 h-0.5 rounded-full bg-white mt-0.5 ml-0.5" /></div>
+            <div className="absolute inset-0 rounded-full origin-center" style={{ animation: 'rc-blink 5s ease-in-out infinite' }}><div className="w-full h-full rounded-full bg-gray-900" /></div>
+          </div>
+          <div className="w-4 h-5 rounded-full bg-gray-900 border border-green-200/20 flex items-center justify-center">
+            <div className="w-2 h-2 rounded-full bg-lime-400 shadow-sm shadow-lime-400"><div className="w-0.5 h-0.5 rounded-full bg-white mt-0.5 ml-0.5" /></div>
+            <div className="absolute inset-0 rounded-full origin-center" style={{ animation: 'rc-blink 5s .15s ease-in-out infinite' }}><div className="w-full h-full rounded-full bg-gray-900" /></div>
+          </div>
+        </div>
+        <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-2 h-1 rounded-b-full bg-gray-900/70" />
+      </div>
+      <div className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-[4.2rem] sm:w-[4.8rem]" style={{ animation: 'rc-headphone-bob 4s ease-in-out infinite' }}>
+        <div className="w-full h-3 rounded-t-full border-t-[3px] border-l-[3px] border-r-[3px] border-gray-400" />
+        <div className="absolute -bottom-1.5 left-0 w-3 h-4 rounded-md bg-linear-to-b from-gray-500 to-gray-600 border border-gray-400/40" />
+        <div className="absolute -bottom-1.5 right-0 w-3 h-4 rounded-md bg-linear-to-b from-gray-500 to-gray-600 border border-gray-400/40" />
+      </div>
+      {/* arm reaching for door */}
+      <div className="absolute bottom-6 -right-2 w-5 h-1.5 rounded-full bg-green-500 rotate-[-15deg] group-hover:rotate-[-30deg] transition-transform origin-left" />
+    </div>
+  )
+}
+
+/* ─── Sealed door ─── */
+function SealedDoor() {
+  return (
+    <div className="relative w-24 h-36 sm:w-28 sm:h-40 mx-auto mb-4" aria-hidden>
+      {/* door frame */}
+      <div className="absolute inset-0 rounded-t-xl bg-linear-to-b from-gray-600 to-gray-700 border-2 border-gray-500/40 shadow-inner">
+        <div className="absolute inset-1 rounded-t-lg bg-linear-to-b from-gray-800 to-gray-900 border border-gray-600/30">
+          {/* SIGN UP label */}
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-gray-700/80 rounded text-[8px] font-bold text-gray-400 tracking-widest border border-gray-500/30">
+            SIGN UP
+          </div>
+          {/* door handle */}
+          <div className="absolute right-2 top-1/2 -translate-y-1/2 w-2 h-5 rounded-full bg-gray-500/60" />
+        </div>
+      </div>
+      {/* holographic lock */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center"
+        style={{ animation: 'rc-lock-glow 2s ease-in-out infinite' }}>
+        <div className="w-8 h-8 rounded-full bg-red-500/20 border border-red-400/40 flex items-center justify-center backdrop-blur-sm">
+          <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+        </div>
+      </div>
+      {/* glow ring */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 rounded-full border border-red-400/20"
+        style={{ animation: 'rc-pulse 3s ease-in-out infinite' }} />
+    </div>
+  )
+}
+
+/* ─── REGISTRATION CLOSED PAGE ─── */
+function RegistrationClosed({ logo }) {
+  const containerRef = useRef(null)
+  const [mouse, setMouse] = useState({ x: 0, y: 0 })
+  const [email, setEmail] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (!document.getElementById(RC_STYLE_ID)) {
+      const s = document.createElement('style')
+      s.id = RC_STYLE_ID
+      s.textContent = RC_KEYFRAMES
+      document.head.appendChild(s)
+    }
+    return () => { const el = document.getElementById(RC_STYLE_ID); if (el) el.remove() }
+  }, [])
+
+  const handleMouseMove = useCallback((e) => {
+    if (!containerRef.current) return
+    const { left, top, width, height } = containerRef.current.getBoundingClientRect()
+    setMouse({ x: ((e.clientX - left) / width - .5) * 2, y: ((e.clientY - top) / height - .5) * 2 })
+  }, [])
+
+  const px = (f) => `translate(${mouse.x * f}px, ${mouse.y * f}px)`
+
+  const handleNotify = async (e) => {
+    e.preventDefault()
+    const trimmed = email.trim()
+    if (!trimmed) return toast.error('Please enter your email')
+    setSubmitting(true)
+    try {
+      await apiHelper.post('/api/feedback', {
+        feedback: `Waitlist: ${trimmed}`,
+        feedbackType: 'register',
+      })
+      toast.success("You'll be notified when registration opens!")
+      setEmail('')
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Could not join waitlist')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div ref={containerRef} onMouseMove={handleMouseMove}
+      className="relative min-h-[calc(100vh-64px)] overflow-hidden flex items-center justify-center bg-gray-900 selection:bg-amber-500/30 px-4">
+
+      {/* bg radials */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(180,30,30,.10)_0%,transparent_70%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_20%_80%,rgba(251,191,36,.05)_0%,transparent_50%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_80%_20%,rgba(59,130,246,.05)_0%,transparent_50%)]" />
+
+      {/* volumetric beams */}
+      <div className="absolute top-0 left-[12%] pointer-events-none" aria-hidden>
+        <div className="w-36 h-[420px] opacity-[.06]" style={{ background: 'linear-gradient(180deg,rgba(251,59,59,.7) 0%,transparent 100%)', transform: 'rotate(12deg)', filter: 'blur(18px)' }} />
+      </div>
+      <div className="absolute top-0 right-[15%] pointer-events-none" aria-hidden>
+        <div className="w-36 h-[420px] opacity-[.06]" style={{ background: 'linear-gradient(180deg,rgba(251,191,36,.7) 0%,transparent 100%)', transform: 'rotate(-18deg)', filter: 'blur(18px)' }} />
+      </div>
+
+      <RcParticles />
+      <RcFloatingLogos logo={logo} />
+
+      {/* main content */}
+      <div className="relative z-10 flex flex-col items-center text-center max-w-lg mx-auto py-10" style={{ transform: px(2) }}>
+
+        {/* mascots */}
+        <div className="flex items-end justify-center gap-3 sm:gap-6 mb-6" style={{ transform: px(5) }}>
+          <RcAlienMascot />
+          <RcPopcornMascot />
+          <RcTvMascot />
+        </div>
+
+        {/* sealed door */}
+        <div style={{ transform: px(3) }}>
+          <SealedDoor />
+        </div>
+
+        {/* headline */}
+        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight select-none mt-2"
+          style={{
+            background: 'linear-gradient(135deg, #ef4444 0%, #f59e0b 50%, #ef4444 100%)',
+            backgroundSize: '400% 100%',
+            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+            animation: 'rc-shimmer 4s linear infinite',
+            filter: 'drop-shadow(0 2px 16px rgba(239,68,68,.3))',
+          }}>
+          Registration Closed
+        </h1>
+
+        <p className="mt-3 text-base sm:text-lg text-gray-300 max-w-md leading-relaxed">
+          Stream Haven is currently full. Sign-ups reopen soon.
+        </p>
+
+        {/* glassmorphism card */}
+        <div className="mt-8 w-full max-w-sm p-6 rounded-2xl bg-gray-800/40 backdrop-blur-xl border border-gray-600/30 shadow-2xl"
+          style={{ animation: 'rc-glow-pulse 4s ease-in-out infinite' }}>
+          <p className="text-sm text-gray-400 mb-4">Join the waitlist for early access</p>
+          <form onSubmit={handleNotify} className="flex gap-2">
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+              placeholder="you@email.com"
+              disabled={submitting}
+              className="flex-1 min-w-0 px-4 py-2.5 rounded-xl bg-gray-900/70 border border-gray-600/50 text-gray-100 placeholder-gray-500 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent disabled:opacity-60" />
+            <button type="submit" disabled={submitting}
+              className="group relative shrink-0 px-5 py-2.5 rounded-xl bg-linear-to-r from-amber-500 to-amber-400 text-gray-900 font-bold text-sm shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 hover:scale-[1.04] active:scale-[0.98] transition-all duration-200 overflow-hidden disabled:opacity-60 disabled:pointer-events-none">
+              <span className="absolute inset-0 bg-linear-to-r from-white/0 via-white/20 to-white/0 translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-700" />
+              <span className="relative z-10">{submitting ? '…' : 'Notify Me'}</span>
+            </button>
+          </form>
+        </div>
+
+        {/* back link */}
+        <Link to="/login" className="mt-6 text-sm text-gray-400 hover:text-amber-400 transition-colors">
+          ← Back to login
+        </Link>
+      </div>
+
+      {/* bottom fade */}
+      <div className="absolute bottom-0 inset-x-0 h-20 bg-linear-to-t from-gray-950 to-transparent pointer-events-none" />
+    </div>
+  )
+}
 
 const RegisterPage = () => {
   const { logo } = useImage()
@@ -213,13 +590,7 @@ const RegisterPage = () => {
   }
 
   if (!registrationOpen) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-900">
-        <div className="bg-gray-800 border border-gray-700 p-6 rounded-lg shadow-xl w-full max-w-sm text-center">
-          <p className="text-red-400 font-medium">Registration is disabled. Contact admin.</p>
-        </div>
-      </div>
-    )
+    return <RegistrationClosed logo={logo} />
   }
 
   if (step === 'import') {
@@ -312,8 +683,8 @@ const RegisterPage = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-900">
-      <div className="bg-gray-800 border border-gray-700 p-6 rounded-lg shadow-xl w-full max-w-sm">
+    <div className="min-h-screen flex items-center justify-center bg-gray-900 px-4">
+      <div className="bg-gray-800 border border-gray-700 p-6 rounded-lg shadow-xl w-full max-w-sm my-10">
         <div className="flex justify-between">
           <h1 className="text-xl font-semibold mb-4 text-gray-100">Register</h1>
           <img src={logo} alt="Logo" className="w-20" />
@@ -345,14 +716,14 @@ const RegisterPage = () => {
               autoComplete="one-time-code"
               value={otp}
               onChange={(e) => setOtp(e.target.value)}
-              className="flex-1 bg-gray-700 border border-gray-600 rounded px-3 py-2 text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+              className="flex-1 min-w-0 bg-gray-700 border border-gray-600 rounded px-3 py-2 text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
               placeholder="OTP"
             />
             <button
               type="button"
               onClick={handleSendOtp}
               disabled={otpCooldown > 0}
-              className="px-4 py-2 rounded bg-gray-600 text-gray-200 font-medium hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+              className="shrink-0 px-4 py-2 rounded bg-gray-600 text-gray-200 font-medium hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {otpCooldown > 0
                 ? `${Math.floor(otpCooldown / 60)}:${String(otpCooldown % 60).padStart(2, '0')}`

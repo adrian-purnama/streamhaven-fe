@@ -18,6 +18,7 @@ import MovieSyncPage from './pages/auth/admin/MovieSyncPage'
 import TvSyncPage from './pages/auth/admin/TvSyncPage'
 import ServerPage from './pages/auth/admin/ServerPage'
 import SupportersPage from './pages/auth/admin/SupportersPage'
+import FeedbackPage from './pages/auth/admin/FeedbackPage'
 import WatchNowPage from './pages/WatchNowPage'
 import ProfilePage from './pages/ProfilePage'
 import SearchPage from './pages/SearchPage'
@@ -92,6 +93,7 @@ function App() {
                 <Route path='/admin/tv' element={<TvSyncPage />} />
                 <Route path='/admin/servers' element={<ServerPage />} />
                 <Route path='/admin/supporters' element={<SupportersPage />} />
+                <Route path='/admin/feedback' element={<FeedbackPage />} />
                 <Route path='*' element={<NotFoundPage />} />
               </Routes>
             </div>

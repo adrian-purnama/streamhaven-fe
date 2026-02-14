@@ -188,7 +188,7 @@ function PopcornMascot() {
         <div className="absolute top-[3.4rem] sm:top-[3.8rem] left-1/2 -translate-x-1/2 w-3 h-1.5 rounded-b-full bg-gray-900/80" />
       </div>
       {/* popcorn pile on top */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 flex gap-0.5" style={{ animation: 'nf-wiggle 3s ease-in-out infinite' }}>
+      {/* <div className="absolute top-0 left-1/2 -translate-x-1/2 flex gap-0.5" style={{ animation: 'nf-wiggle 3s ease-in-out infinite' }}>
         {[
           { w: 10, h: 11, mt: 0 },
           { w: 12, h: 9, mt: 4 },
@@ -207,7 +207,7 @@ function PopcornMascot() {
             }}
           />
         ))}
-      </div>
+      </div> */}
       {/* small arms */}
       <div className="absolute bottom-4 -left-2 w-4 h-1.5 rounded-full bg-red-600 rotate-[-20deg] group-hover:rotate-[-35deg] transition-transform origin-right" />
       <div className="absolute bottom-4 -right-2 w-4 h-1.5 rounded-full bg-red-600 rotate-20 group-hover:rotate-35 transition-transform origin-left" />
