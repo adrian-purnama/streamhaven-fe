@@ -36,6 +36,17 @@ export default function Poster({ movie, genres = [], size = 'md', mediaType, cla
   const countdownIntervalRef = useRef(null)
   const fetchTimeoutRef = useRef(null)
 
+  const [showTooltip, setShowTooltip] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(min-width: 1024px)').matches : false
+  )
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)')
+    setShowTooltip(mq.matches)
+    const h = () => setShowTooltip(mq.matches)
+    mq.addEventListener('change', h)
+    return () => mq.removeEventListener('change', h)
+  }, [])
+
   const handleMouseMove = useCallback((e) => {
     latestRef.current = { clientX: e.clientX, clientY: e.clientY }
     if (rafIdRef.current == null) {
@@ -163,9 +174,9 @@ export default function Poster({ movie, genres = [], size = 'md', mediaType, cla
   if (!movie) return null
 
   const sizeMap = {
-    sm: { wrapper: 'w-full min-w-[140px] aspect-[2/3]', panel: 'w-[240px]', panelPx: 240 },
-    md: { wrapper: 'w-full min-w-[180px] aspect-[2/3]', panel: 'w-[280px]', panelPx: 280 },
-    lg: { wrapper: 'w-full min-w-[220px] aspect-[2/3]', panel: 'w-[320px]', panelPx: 320 },
+    sm: { wrapper: 'w-full min-w-[90px] sm:min-w-[100px] aspect-[2/3]', panel: 'w-[240px]', panelPx: 240 },
+    md: { wrapper: 'w-full min-w-[100px] sm:min-w-[180px] aspect-[2/3]', panel: 'w-[280px]', panelPx: 280 },
+    lg: { wrapper: 'w-full min-w-[120px] sm:min-w-[220px] aspect-[2/3]', panel: 'w-[320px]', panelPx: 320 },
   }
   const { wrapper: dims, panel: panelWidth, panelPx } = sizeMap[size] || sizeMap.md
 
@@ -189,8 +200,8 @@ export default function Poster({ movie, genres = [], size = 'md', mediaType, cla
   return (
     <article
       ref={containerRef}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
+      onMouseMove={showTooltip ? handleMouseMove : undefined}
+      onMouseLeave={showTooltip ? handleMouseLeave : undefined}
       className={`group relative shrink-0 ${dims} rounded-md overflow-visible ${className}`}
       aria-label={movie.title}
     >
@@ -274,8 +285,8 @@ export default function Poster({ movie, genres = [], size = 'md', mediaType, cla
         </div>
       )}
 
-      {/* Synopsis tooltip — portal to body so it isn't clipped by overflow-x-auto on the row */}
-      {typeof document !== 'undefined' &&
+      {/* Synopsis tooltip — portal to body so it isn't clipped by overflow-x-auto on the row (lg and up only) */}
+      {showTooltip && typeof document !== 'undefined' &&
         createPortal(
           <div
             role="tooltip"

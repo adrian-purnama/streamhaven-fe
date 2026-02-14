@@ -88,7 +88,7 @@ function MultiSearch() {
     <div ref={containerRef} className="flex-1 min-w-0 w-full relative">
       <form
         onSubmit={handleSubmit}
-        className="flex items-stretch rounded-lg bg-gray-700/80 border border-gray-600 overflow-hidden focus-within:border-amber-500 focus-within:ring-1 focus-within:ring-amber-500 px-2 py-2"
+        className="flex items-stretch rounded-lg bg-gray-700/80 border border-gray-600 overflow-hidden focus-within:border-amber-500 focus-within:ring-1 focus-within:ring-amber-500 px-2 py-2 min-w-0"
       >
         <input
           type="search"
@@ -96,7 +96,7 @@ function MultiSearch() {
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => query.trim() && setOpen(true)}
           placeholder="Search movies, TV, people…"
-          className="flex-1 bg-transparent px-3 text-sm text-gray-100 placeholder-gray-400 focus:outline-none"
+          className="flex-1 min-w-0 bg-transparent px-3 text-sm text-gray-100 placeholder-gray-400 focus:outline-none"
           aria-label="Search"
           aria-expanded={open}
           aria-autocomplete="list"
@@ -111,7 +111,7 @@ function MultiSearch() {
 
       {open && (query.trim() || results.length > 0 || loading) && (
         <div
-          className="absolute top-full left-0 right-0 mt-1 rounded-lg border border-gray-600 bg-gray-800 shadow-xl z-50 max-h-[min(70vh,400px)] overflow-y-auto overflow-x-hidden py-1 pr-2 -mr-2 [scrollbar-width:thin] [scrollbar-color:var(--color-gray-600)_transparent] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-600 [&::-webkit-scrollbar-thumb]:min-h-8"
+          className="absolute top-full left-0 right-0 mt-1 rounded-lg border border-gray-600 bg-gray-800 shadow-xl z-50 max-h-[min(70vh,400px)] overflow-y-auto overflow-x-hidden py-1 pr-2 [scrollbar-width:thin] [scrollbar-color:var(--color-gray-600)_transparent] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-600 [&::-webkit-scrollbar-thumb]:min-h-8"
           role="listbox"
         >
           {loading && (
