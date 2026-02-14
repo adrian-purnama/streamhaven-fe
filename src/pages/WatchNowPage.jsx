@@ -208,14 +208,13 @@ export default function WatchNowPage() {
               <div className="order-1 md:order-2 flex-1 min-w-0 min-h-0 mx-4 md:overflow-hidden flex md:items-center md:justify-center">
                 <div className="relative w-full aspect-[19/9] md:h-full md:max-h-full md:w-auto md:aspect-[19/9] bg-gray-800 rounded-lg overflow-hidden">
                   {watchLinks[selectedIndex]?.link ? (
-                    // <iframe
-                    //   src={watchLinks[selectedIndex].link}
-                    //   className="absolute inset-0 w-full h-full border-0 rounded-lg"
-                    //   title={`Watch ${media.title}`}
-                    //   allowFullScreen
-                    //   referrerPolicy="origin"
-                    // />
-                    <div></div>
+                    <iframe
+                      src={watchLinks[selectedIndex].link}
+                      className="absolute inset-0 w-full h-full border-0 rounded-lg"
+                      title={`Watch ${media.title}`}
+                      allowFullScreen
+                      referrerPolicy="origin"
+                    />
                   ) : null}
                 </div>
               </div>
@@ -532,14 +531,13 @@ export default function WatchNowPage() {
             <div className="mx-4 flex-1">
               <div className="relative w-full aspect-[19/9] bg-gray-800 rounded-lg overflow-hidden">
                 {watchLinks[selectedIndex]?.link ? (
-                  // <iframe
-                  //   src={watchLinks[selectedIndex].link}
-                  //   className="absolute inset-0 w-full h-full border-0 rounded-lg"
-                  //   title={`Watch ${media.title}`}
-                  //   allowFullScreen
-                  //   referrerPolicy="origin"
-                  // />
-                  <div></div>
+                  <iframe
+                    src={watchLinks[selectedIndex].link}
+                    className="absolute inset-0 w-full h-full border-0 rounded-lg"
+                    title={`Watch ${media.title}`}
+                    allowFullScreen
+                    referrerPolicy="origin"
+                  />
                 ) : null}
               </div>
               <div className="flex flex-wrap gap-2 items-center mt-4">
