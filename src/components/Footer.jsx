@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useImage } from '../context/ImageContext'
+import CurvedLoop from './ui/CurvedLoop'
 
 const NAV_LINKS = [
   { to: '/home', label: 'Home' },
@@ -78,13 +79,25 @@ export default function Footer() {
             </Link>
           </div>
 
+          {/* Curved marquee – absolute so text size stays consistent, fixed height */}
+          <div className="relative w-full h-24 [&_.curved-loop-jacket]:!absolute [&_.curved-loop-jacket]:!inset-0 [&_.curved-loop-jacket]:!min-h-0 [&_.curved-loop-jacket]:!h-full [&_.curved-loop-jacket]:!w-full [&_.curved-loop-svg]:!text-gray-500">
+            <CurvedLoop
+              marqueeText={`Watch ✦ Discover ✦ ${appName} ✦ `}
+              speed={2}
+              curveAmount={200}
+              direction="right"
+              interactive={false}
+              className="custom-text-style"
+            />
+          </div>
+
           {/* Bottom row */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-            <p className="text-gray-500 text-xs">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4">
+            <p className="text-gray-500 text-xs text-center sm:text-left">
               © {year} {appName}. All rights reserved.
             </p>
-            <p className="text-gray-600 text-xs flex items-center gap-1.5">
-              Made with <span className="text-red-400 animate-pulse text-sm">&#9829;</span> by the {appName} Creator
+            <p className="text-gray-500 text-xs flex items-center justify-center gap-1.5 sm:justify-end">
+              Made with <span className="text-red-400 animate-pulse text-sm" aria-hidden>&#9829;</span> by the {appName} team
             </p>
           </div>
         </div>

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import {
   Unlock, ShieldCheck, Heart, BadgeCheck,
   Twitter, Github, Instagram, Youtube, Globe, ExternalLink, Twitch, Linkedin, Facebook,
@@ -10,6 +10,10 @@ import { baseURL } from '../helper/apiHelper'
 import apiHelper from '../helper/apiHelper'
 import MultiSearch from '../components/MultiSearch'
 import Modal from '../components/Modal'
+import { DotPattern } from '../components/ui/dot-pattern'
+import { cn } from "@/lib/utils"
+import { ShimmerButton } from "@/components/ui/shimmer-button"
+import { Highlighter } from "@/components/ui/highlighter"
 
 const VALUES = [
   {
@@ -173,6 +177,9 @@ export default function LandingPage() {
   const [supporterGroups, setSupporterGroups] = useState(EMPTY_GROUPS)
   const [selectedSupporter, setSelectedSupporter] = useState(null)
 
+  const navigate = useNavigate()
+  
+
   useEffect(() => {
     apiHelper.get('/api/supporters')
       .then(({ data }) => {
@@ -196,8 +203,18 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-gray-900 text-white pt-20 px-6">
-      <div className="max-w-6xl mx-auto">
-        <div id="about" className="text-center mb-16">
+      <div className="max-w-6xl mx-auto relative">
+        
+        <div className="pointer-events-none absolute top-[-10rem] left-0 right-0 z-0 h-[min(200vh,800px)]">
+          <DotPattern
+          glow={true}
+            className={cn(
+              "[mask-image:radial-gradient(500px_circle_at_center,white,transparent)]"
+            )}
+          />
+        </div>
+        
+        <div id="about" className="relative z-10 text-center mb-16">
           <img
             src={logoFull}
             alt={appName}
@@ -206,20 +223,55 @@ export default function LandingPage() {
           <p className="text-lg text-gray-300">
                         {tagLine}
                     </p>
-
-                    <div className="w-fit mx-auto mt-10">
-                      <MultiSearch />
+                    <div className="w-full max-w-xl mx-auto mt-10">
+                      <div className="flex flex-col items-center gap-6">
+                        <ShimmerButton
+                          className="w-full sm:w-auto border-orange-500/30 hover:border-orange-400/50"
+                          background="rgb(254,154,0)"
+                          shimmerColor="rgb(255, 255, 255)"
+                          borderRadius="0.5rem"
+                          onClick={() => navigate('/home')}
+                        >
+                          Discover Site
+                        </ShimmerButton>
+                        <div className="flex items-center gap-4 w-full">
+                          <span className="flex-1 h-px bg-gray-600/80" aria-hidden />
+                          <span className="text-sm font-medium text-gray-500 uppercase tracking-wider">or</span>
+                          <span className="flex-1 h-px bg-gray-600/80" aria-hidden />
+                        </div>
+                        <div className="w-full">
+                          <MultiSearch />
+                        </div>
+                      </div>
                     </div>
 
                     <p className="mt-10 text-sm text-gray-400 max-w-160 mx-auto">
-                        <strong className="text-red-700">Disclaimer:</strong> Any advertisements shown during playback are from third-party video providers.
-                        {appName} does not control or benefit from these ads. We&apos;re working to move toward a fully ad-free experience.
+                        <Highlighter color="red">
+                          <strong className="text-white">Disclaimer:</strong>
+                        </Highlighter>
+
+                        Any 
+                        <Highlighter color="#FE9A00" action="underline">
+                          advertisements  
+                        </Highlighter>
+                          shown  during playback are from third-party video providers.
+                          {appName} does not control or benefit from these 
+                          
+                          <Highlighter color="#FE9A00" action="underline">
+                            ads
+                          </Highlighter>
+                          
+                          . We&apos;re working to move toward a fully 
+                          
+                          <Highlighter color="#FE9A00" action="underline">
+                            ad-free experience.
+                          </Highlighter>
+
                     </p>
                 </div>
-
         <section
           id="values"
-          className="grid md:grid-cols-3 gap-8 mb-20"
+          className="relative z-10 grid md:grid-cols-3 gap-8 mb-20"
           style={{ perspective: '900px' }}
         >
           {VALUES.map((card) => {
@@ -272,7 +324,7 @@ export default function LandingPage() {
           })}
         </section>
 
-        <section id="supporters" className="pb-20">
+        <section id="supporters" className="relative z-10 pb-20">
           <h2 className="text-3xl font-bold text-center mb-10 text-gray-100">Our Supporters</h2>
 
           {Object.entries(supporterGroups).map(([tier, group]) => (
