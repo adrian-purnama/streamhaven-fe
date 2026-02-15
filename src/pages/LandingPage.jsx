@@ -250,19 +250,18 @@ export default function LandingPage() {
                           <strong className="text-white">Disclaimer:</strong>
                         </Highlighter>
 
-                        Any 
+                        Any{' '}
                         <Highlighter color="#FE9A00" action="underline">
-                          advertisements  
+                          advertisements
                         </Highlighter>
-                          shown  during playback are from third-party video providers.
-                          {appName} does not control or benefit from these 
+                        {' '}shown  during playback are from third-party video providers.
+                          {appName} does not control or benefit from these{' '}
                           
                           <Highlighter color="#FE9A00" action="underline">
                             ads
                           </Highlighter>
                           
-                          . We&apos;re working to move toward a fully 
-                          
+                          . We&apos;re working to move toward a fully{' '}
                           <Highlighter color="#FE9A00" action="underline">
                             ad-free experience.
                           </Highlighter>
