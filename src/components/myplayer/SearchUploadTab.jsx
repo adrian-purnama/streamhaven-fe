@@ -38,7 +38,7 @@ function SearchUploadTab({ onUploadingChange }) {
 
   const onDragLeave = () => setDragOver(false)
 
-  const CHUNK_SIZE = 90 * 1024 * 1024 // 90 MB (under Cloudflare 100MB)
+  const CHUNK_SIZE = 20 * 1024 * 1024 // 90 MB (under Cloudflare 100MB)
 
   const handleUpload = async () => {
     if (!selectedMovieForUpload?.id || !file) {
