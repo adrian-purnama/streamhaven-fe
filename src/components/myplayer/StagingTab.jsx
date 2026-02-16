@@ -23,6 +23,8 @@ function StagingTab() {
   const [processLoading, setProcessLoading] = useState(false)
   const [processError, setProcessError] = useState(null)
 
+  const [purging, setPurging] = useState(false)
+
   const [uploadedList, setUploadedList] = useState([])
   const [uploadedTotal, setUploadedTotal] = useState(0)
   const [uploadedLoading, setUploadedLoading] = useState(false)
@@ -109,6 +111,29 @@ function StagingTab() {
     }
   }
 
+  const purgeAllUploads = async () => {
+    if (!window.confirm('Delete all staging videos, in-progress uploads, and temp files? This cannot be undone.')) return
+    setPurging(true)
+    setProcessError(null)
+    try {
+      const { data } = await apiHelper.get('/api/staging/purge-all-uploads')
+      if (data?.success) {
+        setStagingList([])
+        setStagingTotal(0)
+        setProcessStatus(null)
+        fetchStaging()
+        fetchProcessStatus()
+      } else {
+        setProcessError(data?.message || 'Purge failed')
+      }
+    } catch (err) {
+      const res = err.response
+      setProcessError(res?.data?.message || err.message || 'Purge failed')
+    } finally {
+      setPurging(false)
+    }
+  }
+
   const statusBadgeClass = (status) => {
     switch (status) {
       case 'pending':
@@ -155,14 +180,24 @@ function StagingTab() {
         <div className="rounded-xl border border-gray-700 bg-gray-800/50 p-6">
           <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
             <h3 className="text-gray-200 font-medium">Pending & failed (retry)</h3>
-            <button
-              type="button"
-              onClick={runProcess}
-              disabled={processLoading}
-              className="px-4 py-2 rounded-lg bg-amber-500 text-gray-900 font-medium hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {processLoading ? 'Starting…' : 'Process queue'}
-            </button>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={purgeAllUploads}
+                disabled={purging}
+                className="px-4 py-2 rounded-lg border border-red-500/60 text-red-400 font-medium hover:bg-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {purging ? 'Purging…' : 'Purge all'}
+              </button>
+              <button
+                type="button"
+                onClick={runProcess}
+                disabled={processLoading}
+                className="px-4 py-2 rounded-lg bg-amber-500 text-gray-900 font-medium hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {processLoading ? 'Starting…' : 'Process queue'}
+              </button>
+            </div>
           </div>
           {processError && <p className="text-red-400 text-sm mb-3">{processError}</p>}
           {stagingLoading ? (

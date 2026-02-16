@@ -12,6 +12,7 @@ function MappingTab() {
   const [skip, setSkip] = useState(0)
   const [loading, setLoading] = useState(false)
   const [savingId, setSavingId] = useState(null)
+  const [deletingId, setDeletingId] = useState(null)
   const [remapItem, setRemapItem] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -64,6 +65,24 @@ function MappingTab() {
       // leave list as-is
     } finally {
       setSavingId(null)
+    }
+  }
+
+  const handleDelete = async (item) => {
+    if (!item?.abyssSlug) return
+    if (!window.confirm(`Delete "${item.title || item.filename || item.abyssSlug}" from Abyss and the database? This cannot be undone.`)) return
+    setDeletingId(item._id)
+    try {
+      const { data } = await apiHelper.delete(`/api/abyss/delete-video/${encodeURIComponent(item.abyssSlug)}`)
+      if (data?.success) {
+        setList((prev) => prev.filter((it) => it._id !== item._id))
+        setTotal((t) => Math.max(0, t - 1))
+      }
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Delete failed'
+      window.alert(msg)
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -149,14 +168,24 @@ function MappingTab() {
                     {item.externalId != null && (
                       <p className="text-gray-400 text-xs">TMDB ID: {item.externalId}</p>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => setRemapItem(item)}
-                      disabled={savingId === item._id}
-                      className="px-3 py-1.5 rounded-lg bg-amber-500 text-gray-900 text-sm font-medium hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {savingId === item._id ? 'Saving…' : 'Remap'}
-                    </button>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setRemapItem(item)}
+                        disabled={savingId === item._id || deletingId === item._id}
+                        className="px-3 py-1.5 rounded-lg bg-amber-500 text-gray-900 text-sm font-medium hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {savingId === item._id ? 'Saving…' : 'Remap'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(item)}
+                        disabled={savingId === item._id || deletingId === item._id}
+                        className="px-3 py-1.5 rounded-lg border border-red-500/60 text-red-400 text-sm font-medium hover:bg-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {deletingId === item._id ? 'Deleting…' : 'Delete'}
+                      </button>
+                    </div>
                   </div>
                 </li>
               ))}

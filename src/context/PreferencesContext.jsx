@@ -87,9 +87,6 @@ export function PreferencesProvider({ children }) {
     await updatePreferences({ [key]: value })
   }, [updatePreferences])
 
-useEffect(() => {
-  console.log(preferences)
-}, [preferences])
 
   const value = {
     preferences,
