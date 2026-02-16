@@ -120,7 +120,7 @@ export default function HomePage() {
                 onClick={() => setFeedbackOpen(true)}
                 className="bg-transparent border-none p-0 text-inherit font-inherit cursor-pointer hover:text-amber-400 transition-colors"
               >
-                Please give us your feedback here
+                Give Feedback Or Request AD Free Movie
               </button>
               <span className="text-gray-500">·</span>
               <span>You can turn this off in Settings if you have an account</span>

@@ -1,11 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import toast from 'react-hot-toast'
 import apiHelper from '../../helper/apiHelper'
+import SearchMovieForm from './SearchMovieForm'
 
 const TopPickForm = () => {
-  const [imdbId, setImdbId] = useState('')
-  const [lookupMovie, setLookupMovie] = useState(null)
-  const [lookupLoading, setLookupLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [topPicks, setTopPicks] = useState([])
   const [topPicksLoading, setTopPicksLoading] = useState(true)
@@ -28,39 +26,11 @@ const TopPickForm = () => {
     fetchTopPicks()
   }, [fetchTopPicks])
 
-  const handleLookup = async (e) => {
-    e?.preventDefault()
-    const id = (imdbId || '').trim()
-    if (!id) {
-      toast.error('Enter an IMDB id (e.g. tt0137523)')
-      return
-    }
-    setLookupLoading(true)
-    setLookupMovie(null)
-    try {
-      const res = await apiHelper.get('/api/movies/top-pick', { params: { imdb_id: id } })
-      setLookupMovie(res.data?.data ?? null)
-      if (res.data?.data) toast.success('Movie found')
-    } catch (err) {
-      toast.error(err.response?.data?.message || err.message || 'Lookup failed')
-      setLookupMovie(null)
-    } finally {
-      setLookupLoading(false)
-    }
-  }
-
-  const handleInsert = async (e) => {
-    e?.preventDefault()
-    const id = (imdbId || '').trim()
-    if (!id) {
-      toast.error('Enter an IMDB id first')
-      return
-    }
+  const handleInsert = async (movie) => {
+    if (!movie?.id) return
     setSaving(true)
     try {
-      await apiHelper.post('/api/movies/top-pick', { imdb_id: id })
-      setImdbId('')
-      setLookupMovie(null)
+      await apiHelper.post('/api/movies/top-pick', { tmdb_id: movie.id })
       toast.success('Saved as top pick in cache')
       fetchTopPicks()
     } catch (err) {
@@ -85,72 +55,22 @@ const TopPickForm = () => {
 
   return (
     <div className="p-4">
-      <form onSubmit={handleLookup} className="space-y-4">
-        <p className="text-gray-400 text-sm">
-          Look up a movie by IMDB id, then insert it into the cache as top pick.
-        </p>
-        <div className="flex flex-wrap gap-2 items-center">
-          <label htmlFor="top-pick-imdb" className="sr-only">IMDB id</label>
-          <input
-            id="top-pick-imdb"
-            type="text"
-            value={imdbId}
-            onChange={(e) => setImdbId(e.target.value)}
-            placeholder="e.g. tt0137523"
-            className="flex-1 min-w-[140px] px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-          />
-          <button
-            type="submit"
-            disabled={lookupLoading}
-            className="px-4 py-2 rounded-lg bg-amber-500 text-gray-900 font-medium hover:bg-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {lookupLoading ? 'Looking up…' : 'Show'}
-          </button>
+      <SearchMovieForm
+        description="Look up a movie by IMDB or TMDB id, then insert it into the cache as top pick."
+        renderActions={(movie) => (
           <button
             type="button"
-            onClick={handleInsert}
-            disabled={lookupLoading || saving || !lookupMovie}
+            onClick={() => handleInsert(movie)}
+            disabled={saving}
             className="px-4 py-2 rounded-lg bg-gray-600 text-gray-100 font-medium hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {saving ? 'Saving…' : 'Insert to cache'}
           </button>
-        </div>
-      </form>
+        )}
+      />
 
-      {lookupLoading && (
-        <div className="py-8 text-center text-gray-400">Loading…</div>
-      )}
-
-      {!lookupLoading && lookupMovie && (
-        <div className="flex gap-4 flex-wrap mt-4 pt-4 border-t border-gray-700">
-          {lookupMovie.poster_url ? (
-            <img
-              src={lookupMovie.poster_url}
-              alt=""
-              className="w-32 h-48 object-cover rounded shrink-0"
-            />
-          ) : (
-            <div className="w-32 h-48 rounded bg-gray-700 shrink-0" />
-          )}
-          <div className="min-w-0 flex-1">
-            <h3 className="text-lg font-semibold text-gray-100">{lookupMovie.title}</h3>
-            <p className="text-sm text-gray-500 mt-1">
-              {lookupMovie.release_date && new Date(lookupMovie.release_date).getFullYear()}
-              {lookupMovie.vote_average != null && ` · ${Number(lookupMovie.vote_average).toFixed(1)}`}
-            </p>
-            {lookupMovie.overview && (
-              <p className="text-gray-400 text-sm mt-2 line-clamp-5">{lookupMovie.overview}</p>
-            )}
-          </div>
-        </div>
-      )}
-
-      {!lookupLoading && !lookupMovie && imdbId.trim() && (
-        <p className="text-gray-500 text-sm mt-4">Enter an IMDB id and click Show.</p>
-      )}
-
-      {topPicksLoading && topPicks.length === 0 && !lookupLoading && (
-        <div className="py-6 text-center text-gray-400 text-sm">Loading cached top picks…</div>
+      {topPicksLoading && topPicks.length === 0 && (
+        <div className="py-6 text-center text-gray-400 text-sm mt-6">Loading cached top picks…</div>
       )}
 
       {!topPicksLoading && topPicks.length > 0 && (

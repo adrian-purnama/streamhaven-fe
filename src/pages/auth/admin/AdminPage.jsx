@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Settings, Users, Clapperboard, Film, Tv, Server, Heart, MessageSquare } from 'lucide-react'
+import { Settings, Users, Clapperboard, Film, Tv, Server, Heart, MessageSquare, Upload } from 'lucide-react'
 
 const ADMIN_CARDS = [
   { id: 'system', title: 'System', description: 'App name, logo, registration', path: '/admin/system', Icon: Settings },
@@ -8,6 +8,7 @@ const ADMIN_CARDS = [
   { id: 'movies', title: 'Movies', description: 'Sync now playing, popular, top rated from TMDB', path: '/admin/movies', Icon: Film },
   { id: 'tv', title: 'TV', description: 'Sync on the air, popular, top rated from TMDB', path: '/admin/tv', Icon: Tv },
   { id: 'servers', title: 'Servers', description: 'Manage streaming servers (movie, TV, anime)', path: '/admin/servers', Icon: Server },
+  { id: 'myplayer', title: 'MyPlayer', description: 'Upload movies to your server for streaming', path: '/admin/myplayer', Icon: Upload },
   { id: 'supporters', title: 'Supporters', description: 'Manage supporters by tier (platinum, gold, silver, bronze)', path: '/admin/supporters', Icon: Heart },
   { id: 'feedback', title: 'Feedback', description: 'View and manage user feedback', path: '/admin/feedback', Icon: MessageSquare },
 ]

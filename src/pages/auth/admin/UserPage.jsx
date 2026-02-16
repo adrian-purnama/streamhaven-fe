@@ -35,6 +35,19 @@ const COLUMNS = [
     ),
   },
   {
+    key: 'adFree',
+    label: 'Ad-free',
+    render: (row) => (
+      <span
+        className={`inline-block text-xs px-2 py-0.5 rounded ${
+          row.adFree ? 'bg-emerald-900/50 text-emerald-300' : 'bg-gray-700 text-gray-400'
+        }`}
+      >
+        {row.adFree ? 'Yes' : 'No'}
+      </span>
+    ),
+  },
+  {
     key: 'createdAt',
     label: 'Created',
     render: (row) => (row.createdAt ? new Date(row.createdAt).toLocaleDateString() : '—'),

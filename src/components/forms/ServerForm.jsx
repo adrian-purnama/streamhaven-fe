@@ -4,6 +4,7 @@ const USED_FOR_OPTIONS = [
   { value: 'movie', label: 'Movie' },
   { value: 'tv', label: 'TV' },
   { value: 'anime', label: 'Anime' },
+  { value: 'my_player', label: 'My player' },
 ]
 
 const ServerForm = ({ initialValues, onSubmit, onCancel, isCreate = false }) => {
@@ -63,7 +64,7 @@ const ServerForm = ({ initialValues, onSubmit, onCancel, isCreate = false }) => 
       </div>
       <div>
         <label htmlFor="server-pattern" className="block text-sm font-medium text-gray-300 mb-1">
-          Watch path pattern (use {'{externalId}'} for TMDB id)
+          Watch path pattern ({'{externalId}'} = TMDB id, {'{slug}'} = my player Abyss slug)
         </label>
         <input
           id="server-pattern"
@@ -71,10 +72,10 @@ const ServerForm = ({ initialValues, onSubmit, onCancel, isCreate = false }) => 
           value={watchPathPattern}
           onChange={(e) => setWatchPathPattern(e.target.value)}
           className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 font-mono text-sm"
-          placeholder="/movie/{externalId} or ?id={externalId} or leave empty"
+          placeholder="/movie/{externalId} or /watch/{slug} or leave empty"
         />
         <p className="text-xs text-gray-500 mt-1">
-          Final URL = Link + this (e.g. https://site.com + /movie/12345)
+          Final URL = Link + this (movie/TV: {'{externalId}'}; my player: {'{slug}'})
         </p>
       </div>
       <div>

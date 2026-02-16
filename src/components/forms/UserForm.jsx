@@ -4,10 +4,11 @@ const UserForm = ({ initialValues, onSubmit, onCancel }) => {
   const [email, setEmail] = useState(initialValues?.email ?? '')
   const [isActive, setIsActive] = useState(initialValues?.isActive ?? true)
   const [isAdmin, setIsAdmin] = useState(initialValues?.isAdmin ?? false)
+  const [adFree, setAdFree] = useState(initialValues?.adFree ?? false)
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    onSubmit({ email, isActive, isAdmin })
+    onSubmit({ email, isActive, isAdmin, adFree })
   }
 
   return (
@@ -48,6 +49,18 @@ const UserForm = ({ initialValues, onSubmit, onCancel }) => {
         />
         <label htmlFor="user-is-admin" className="text-sm font-medium text-gray-300">
           Admin
+        </label>
+      </div>
+      <div className="flex items-center gap-2">
+        <input
+          id="user-ad-free"
+          type="checkbox"
+          checked={adFree}
+          onChange={(e) => setAdFree(e.target.checked)}
+          className="rounded border-gray-600 bg-gray-700 text-amber-500 focus:ring-amber-500"
+        />
+        <label htmlFor="user-ad-free" className="text-sm font-medium text-gray-300">
+          Ad-free
         </label>
       </div>
       <div className="flex gap-2 pt-2">
