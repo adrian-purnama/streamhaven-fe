@@ -10,6 +10,7 @@ function SearchUploadTab({ onUploadingChange }) {
   const [file, setFile] = useState(null)
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(null) // 0–100 sending file
+  const [uploadChunkInfo, setUploadChunkInfo] = useState(null) // { current, total } for "chunk X of Y"
   const [dbProgress, setDbProgress] = useState(null) // 0–100 writing to DB
   const [dragOver, setDragOver] = useState(false)
   const inputRef = useRef(null)
@@ -44,20 +45,22 @@ function SearchUploadTab({ onUploadingChange }) {
       toast.error('Select a movie and choose a video file')
       return
     }
+    const totalChunks = Math.ceil(file.size / CHUNK_SIZE) || 1
     setUploading(true)
     setUploadProgress(0)
+    setUploadChunkInfo({ current: 0, total: totalChunks })
     setDbProgress(null)
     if (typeof onUploadingChange === 'function') onUploadingChange(true)
 
     const token = typeof localStorage !== 'undefined' ? localStorage.getItem('fc-token') : null
     const uploadId = Date.now().toString(36) + Math.random().toString(36).slice(2)
-    const totalChunks = Math.ceil(file.size / CHUNK_SIZE) || 1
     const url = `${baseURL}/api/staging/upload-chunk`
     const posterPath = selectedMovieForUpload.poster_path ?? selectedMovieForUpload.poster_url ?? ''
 
     const done = (success = false) => {
       setUploading(false)
       setUploadProgress(null)
+      setUploadChunkInfo(null)
       setDbProgress(null)
       if (typeof onUploadingChange === 'function') onUploadingChange(false)
       if (success) {
@@ -69,6 +72,7 @@ function SearchUploadTab({ onUploadingChange }) {
     try {
       console.log('[STAGING_UPLOAD] start', { uploadId, totalChunks, fileSize: file.size })
       for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+        setUploadChunkInfo({ current: chunkIndex + 1, total: totalChunks })
         const start = chunkIndex * CHUNK_SIZE
         const end = Math.min(start + CHUNK_SIZE, file.size)
         const chunk = file.slice(start, end)
@@ -243,7 +247,11 @@ function SearchUploadTab({ onUploadingChange }) {
             <div className="space-y-3">
               <div className="space-y-1">
                 <div className="flex justify-between text-xs text-gray-500">
-                  <span>Sending file…</span>
+                  <span>
+                    {uploadChunkInfo
+                      ? `Sending chunk ${uploadChunkInfo.current} of ${uploadChunkInfo.total}…`
+                      : 'Sending file…'}
+                  </span>
                   <span>{uploadProgress != null ? `${uploadProgress}%` : '…'}</span>
                 </div>
                 <div className="h-2 w-full rounded-full bg-gray-700 overflow-hidden">
