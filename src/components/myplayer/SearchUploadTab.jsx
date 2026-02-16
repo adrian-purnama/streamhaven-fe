@@ -53,7 +53,8 @@ function SearchUploadTab({ onUploadingChange }) {
     if (selectedMovieForUpload.title) form.append('title', selectedMovieForUpload.title)
     const posterPath = selectedMovieForUpload.poster_path ?? selectedMovieForUpload.poster_url ?? ''
     if (posterPath) form.append('poster_path', posterPath)
-
+    
+      //test this again ?
     const url = `${baseURL}/api/staging/upload`
     const token = typeof localStorage !== 'undefined' ? localStorage.getItem('fc-token') : null
     const xhr = new XMLHttpRequest()
