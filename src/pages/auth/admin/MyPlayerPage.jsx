@@ -28,7 +28,6 @@ const MyPlayerPage = () => {
   const [instructionOpen, setInstructionOpen] = useState(false)
   const [step, setStep] = useState(0)
   const [activeTab, setActiveTab] = useState('upload')
-  const [uploadingInProgress, setUploadingInProgress] = useState(false)
   const [accountInfo, setAccountInfo] = useState(null)
   const [accountInfoLoading, setAccountInfoLoading] = useState(true)
   const [accountInfoError, setAccountInfoError] = useState(null)
@@ -118,38 +117,26 @@ const MyPlayerPage = () => {
         </div>
 
         <div className="flex gap-1 border-b border-gray-700 mb-4">
-          {TABS.map((tab) => {
-            const isUploadTab = tab.id === 'upload'
-            const disabled = uploadingInProgress && !isUploadTab
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => !disabled && setActiveTab(tab.id)}
-                disabled={disabled}
-                className={`px-4 py-2 text-sm font-medium rounded-t border-b-2 -mb-px ${
-                  activeTab === tab.id
-                    ? 'border-amber-500 text-amber-400 bg-gray-800'
-                    : 'border-transparent text-gray-400 hover:text-gray-200'
-                } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                title={disabled ? 'Upload in progress – finish or wait before switching' : undefined}
-              >
-                {tab.label}
-              </button>
-            )
-          })}
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-4 py-2 text-sm font-medium rounded-t border-b-2 -mb-px ${
+                activeTab === tab.id
+                  ? 'border-amber-500 text-amber-400 bg-gray-800'
+                  : 'border-transparent text-gray-400 hover:text-gray-200'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
-        {uploadingInProgress && (
-          <p className="text-amber-400/90 text-sm mb-2">Upload in progress – don&apos;t close or switch tab.</p>
-        )}
 
         <div className="rounded-xl border border-gray-700 bg-gray-800 overflow-hidden">
           {TABS.map((tab) => {
             if (activeTab !== tab.id) return null
             const TabComponent = tab.Component
-            if (tab.id === 'upload') {
-              return <TabComponent key={tab.id} onUploadingChange={setUploadingInProgress} />
-            }
             return <TabComponent key={tab.id} />
           })}
         </div>

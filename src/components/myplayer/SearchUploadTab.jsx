@@ -67,10 +67,12 @@ function SearchUploadTab({ onUploadingChange }) {
     }
 
     try {
+      console.log('[STAGING_UPLOAD] start', { uploadId, totalChunks, fileSize: file.size })
       for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
         const start = chunkIndex * CHUNK_SIZE
         const end = Math.min(start + CHUNK_SIZE, file.size)
         const chunk = file.slice(start, end)
+        console.log('[STAGING_UPLOAD] sending chunk', { chunkIndex, totalChunks, chunkSize: chunk.size })
         const form = new FormData()
         form.append('uploadId', uploadId)
         form.append('chunkIndex', String(chunkIndex))
@@ -110,6 +112,8 @@ function SearchUploadTab({ onUploadingChange }) {
           }
 
           xhr.onload = () => {
+            const preview = (xhr.responseText || '').slice(0, 120)
+            console.log('[STAGING_UPLOAD] chunk response', { chunkIndex, status: xhr.status, preview })
             if (xhr.status >= 400) {
               let msg = 'Chunk upload failed'
               try {
@@ -125,6 +129,8 @@ function SearchUploadTab({ onUploadingChange }) {
               const last = lines[lines.length - 1]
               try {
                 const data = last ? JSON.parse(last) : {}
+                if (data.stage === 'done') console.log('[STAGING_UPLOAD] got stage=done', data)
+                if (data.stage === 'error') console.log('[STAGING_UPLOAD] got stage=error', data)
                 if (data.stage === 'error') reject(new Error(data.message || 'Upload failed'))
                 else resolve(data)
               } catch {
@@ -134,20 +140,26 @@ function SearchUploadTab({ onUploadingChange }) {
               resolve({})
             }
           }
-          xhr.onerror = () => reject(new Error('Network error'))
+          xhr.onerror = () => {
+            console.log('[STAGING_UPLOAD] chunk network error', { chunkIndex })
+            reject(new Error('Network error'))
+          }
           xhr.open('POST', url)
           if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`)
           xhr.send(form)
         })
 
         if (res?.stage === 'done') {
+          console.log('[STAGING_UPLOAD] success, done')
           toast.success('Video added to staging. Cron will upload to Abyss.')
           done(true)
           return
         }
       }
+      console.log('[STAGING_UPLOAD] loop finished without stage=done')
       done(false)
     } catch (err) {
+      console.log('[STAGING_UPLOAD] catch', err?.message)
       toast.error(err?.message || 'Upload failed')
       done(false)
     }

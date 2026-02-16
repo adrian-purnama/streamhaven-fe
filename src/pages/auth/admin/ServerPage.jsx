@@ -83,9 +83,9 @@ const COLUMNS = [
         {(row.usedFor || []).map((v) => (
           <span
             key={v}
-            className="inline-block text-xs px-2 py-0.5 rounded bg-gray-700 text-gray-300"
+            className="inline-block text-xs px-2 py-0.5 rounded bg-gray-700 text-gray-300 capitalize"
           >
-            {v === 'my_player' ? 'My player' : v.charAt(0).toUpperCase() + v.slice(1)}
+            {v}
           </span>
         ))}
         {(row.usedFor || []).length === 0 && (

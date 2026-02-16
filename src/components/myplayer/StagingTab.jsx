@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
 import apiHelper from '../../helper/apiHelper'
-import SearchableDropdown from '../SearchableDropdown'
 
 const PAGE_SIZE = 20
 
@@ -28,14 +27,6 @@ function StagingTab() {
   const [uploadedTotal, setUploadedTotal] = useState(0)
   const [uploadedLoading, setUploadedLoading] = useState(false)
   const [uploadedSkip, setUploadedSkip] = useState(0)
-  const [uploadedSlugFilter, setUploadedSlugFilter] = useState('')
-  const [syncLoading, setSyncLoading] = useState(false)
-
-  const UPLOADED_STATUS_OPTIONS = [
-    { value: '', label: 'All' },
-    { value: 'ready', label: 'Ready' },
-    { value: 'uploaded_not_ready', label: 'Not ready' },
-  ]
 
   const fetchProcessStatus = useCallback(async () => {
     try {
@@ -80,7 +71,6 @@ function StagingTab() {
     setUploadedLoading(true)
     try {
       const params = { limit: PAGE_SIZE, skip: uploadedSkip }
-      if (uploadedSlugFilter) params.slugStatus = uploadedSlugFilter
       const { data } = await apiHelper.get('/api/uploaded-videos', { params })
       if (data?.success && data?.data) {
         setUploadedList(data.data.list ?? [])
@@ -92,7 +82,7 @@ function StagingTab() {
     } finally {
       setUploadedLoading(false)
     }
-  }, [uploadedSkip, uploadedSlugFilter])
+  }, [uploadedSkip])
 
   useEffect(() => {
     if (activeTab === 'staging') fetchStaging()
@@ -141,18 +131,6 @@ function StagingTab() {
   }
 
   const slugStatusLabel = (slugStatus) => (slugStatus === 'ready' ? 'Ready' : 'Not ready yet')
-
-  const runSync = async () => {
-    setSyncLoading(true)
-    try {
-      await apiHelper.get('/api/uploaded-videos/sync')
-      fetchUploaded()
-    } catch {
-      // ignore; list stays as-is
-    } finally {
-      setSyncLoading(false)
-    }
-  }
 
   return (
     <div className="space-y-4">
@@ -317,38 +295,8 @@ function StagingTab() {
 
       {activeTab === 'success' && (
         <div className="rounded-xl border border-gray-700 bg-gray-800/50 p-6">
-          <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-            <div>
-              <h3 className="text-gray-200 font-medium mb-1">Successful uploads</h3>
-              <p className="text-gray-400 text-sm">Videos uploaded to Abyss. Status: not ready yet (processing) or ready.</p>
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2">
-                <span className="text-gray-400 text-sm">Status</span>
-                <div className="w-36">
-                  <SearchableDropdown
-                    options={UPLOADED_STATUS_OPTIONS}
-                    valueKey="value"
-                    labelKey="label"
-                    value={uploadedSlugFilter}
-                    onChange={(val) => {
-                      setUploadedSlugFilter(val ?? '')
-                      setUploadedSkip(0)
-                    }}
-                    placeholder="All"
-                  />
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={runSync}
-                disabled={syncLoading}
-                className="px-4 py-2 rounded-lg border border-gray-600 text-gray-200 font-medium hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {syncLoading ? 'Syncing…' : 'Sync status'}
-              </button>
-            </div>
-          </div>
+          <h3 className="text-gray-200 font-medium mb-2">Successful uploads</h3>
+          <p className="text-gray-400 text-sm mb-4">Videos uploaded to Abyss. Status: not ready yet (processing) or ready.</p>
           {uploadedLoading ? (
             <p className="text-gray-500 text-sm py-8">Loading…</p>
           ) : uploadedList.length === 0 ? (
