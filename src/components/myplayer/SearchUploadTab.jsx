@@ -37,7 +37,9 @@ function SearchUploadTab({ onUploadingChange }) {
 
   const onDragLeave = () => setDragOver(false)
 
-  const handleUpload = () => {
+  const CHUNK_SIZE = 90 * 1024 * 1024 // 90 MB (under Cloudflare 100MB)
+
+  const handleUpload = async () => {
     if (!selectedMovieForUpload?.id || !file) {
       toast.error('Select a movie and choose a video file')
       return
@@ -47,75 +49,108 @@ function SearchUploadTab({ onUploadingChange }) {
     setDbProgress(null)
     if (typeof onUploadingChange === 'function') onUploadingChange(true)
 
-    const form = new FormData()
-    form.append('file', file)
-    form.append('tmdbId', String(selectedMovieForUpload.id))
-    if (selectedMovieForUpload.title) form.append('title', selectedMovieForUpload.title)
-    const posterPath = selectedMovieForUpload.poster_path ?? selectedMovieForUpload.poster_url ?? ''
-    if (posterPath) form.append('poster_path', posterPath)
-    
-      //test this again ?
-    const url = `${baseURL}/api/staging/upload`
     const token = typeof localStorage !== 'undefined' ? localStorage.getItem('fc-token') : null
-    const xhr = new XMLHttpRequest()
-    let lastParsedLength = 0
+    const uploadId = Date.now().toString(36) + Math.random().toString(36).slice(2)
+    const totalChunks = Math.ceil(file.size / CHUNK_SIZE) || 1
+    const url = `${baseURL}/api/staging/upload-chunk`
+    const posterPath = selectedMovieForUpload.poster_path ?? selectedMovieForUpload.poster_url ?? ''
 
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable) setUploadProgress(Math.round((e.loaded / e.total) * 100))
-    }
-
-    xhr.onprogress = () => {
-      const text = xhr.responseText
-      if (!text) return
-      const lines = text.slice(lastParsedLength).split('\n')
-      lastParsedLength = text.length
-      for (const line of lines) {
-        const trimmed = line.trim()
-        if (!trimmed) continue
-        try {
-          const data = JSON.parse(trimmed)
-          if (data.stage === 'writing' && typeof data.progress === 'number') setDbProgress(data.progress)
-          if (data.stage === 'done') setDbProgress(100)
-        } catch { /* ignore parse errors for partial lines */ }
+    const done = (success = false) => {
+      setUploading(false)
+      setUploadProgress(null)
+      setDbProgress(null)
+      if (typeof onUploadingChange === 'function') onUploadingChange(false)
+      if (success) {
+        setFile(null)
+        if (inputRef.current) inputRef.current.value = ''
       }
     }
 
-    xhr.onload = () => {
-      setUploadProgress(100)
-      try {
-        const lines = xhr.responseText.trim().split('\n').filter(Boolean)
-        const last = lines[lines.length - 1]
-        const data = last ? JSON.parse(last) : {}
-        if (data.stage === 'done') {
-          toast.success('Video added to staging. Cron will upload to Abyss.')
-          setFile(null)
-          if (inputRef.current) inputRef.current.value = ''
-        } else if (data.stage === 'error') {
-          toast.error(data.message || 'Upload failed')
-        } else if (xhr.status >= 400) {
-          const err = data.message || data.error || `Request failed (${xhr.status})`
-          toast.error(err)
+    try {
+      for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+        const start = chunkIndex * CHUNK_SIZE
+        const end = Math.min(start + CHUNK_SIZE, file.size)
+        const chunk = file.slice(start, end)
+        const form = new FormData()
+        form.append('uploadId', uploadId)
+        form.append('chunkIndex', String(chunkIndex))
+        form.append('totalChunks', String(totalChunks))
+        form.append('file', chunk, file.name)
+        if (chunkIndex === 0) {
+          form.append('tmdbId', String(selectedMovieForUpload.id))
+          if (selectedMovieForUpload.title) form.append('title', selectedMovieForUpload.title)
+          if (posterPath) form.append('poster_path', posterPath)
         }
-      } catch {
-        if (xhr.status >= 400) toast.error('Upload failed')
+
+        const res = await new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest()
+          let lastParsedLength = 0
+
+          xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+              const chunkPct = (e.loaded / e.total) * 100
+              const sendPct = ((chunkIndex * 100 + chunkPct) / totalChunks)
+              setUploadProgress(Math.round(sendPct))
+            }
+          }
+
+          xhr.onprogress = () => {
+            const text = xhr.responseText
+            const lines = text.slice(lastParsedLength).split('\n')
+            lastParsedLength = text.length
+            for (const line of lines) {
+              const trimmed = line.trim()
+              if (!trimmed) continue
+              try {
+                const data = JSON.parse(trimmed)
+                if (data.stage === 'writing' && typeof data.progress === 'number') setDbProgress(data.progress)
+                if (data.stage === 'done') setDbProgress(100)
+              } catch { /* ignore */ }
+            }
+          }
+
+          xhr.onload = () => {
+            if (xhr.status >= 400) {
+              let msg = 'Chunk upload failed'
+              try {
+                const j = JSON.parse(xhr.responseText || '{}')
+                msg = j.message || j.error || msg
+              } catch { /* ignore */ }
+              reject(new Error(msg))
+              return
+            }
+            const isNDJSON = xhr.getResponseHeader('Content-Type')?.includes('ndjson') || /"stage":\s*"(writing|done|error)"/.test(xhr.responseText || '')
+            if (isNDJSON) {
+              const lines = xhr.responseText.trim().split('\n').filter(Boolean)
+              const last = lines[lines.length - 1]
+              try {
+                const data = last ? JSON.parse(last) : {}
+                if (data.stage === 'error') reject(new Error(data.message || 'Upload failed'))
+                else resolve(data)
+              } catch {
+                resolve({})
+              }
+            } else {
+              resolve({})
+            }
+          }
+          xhr.onerror = () => reject(new Error('Network error'))
+          xhr.open('POST', url)
+          if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+          xhr.send(form)
+        })
+
+        if (res?.stage === 'done') {
+          toast.success('Video added to staging. Cron will upload to Abyss.')
+          done(true)
+          return
+        }
       }
-      setUploading(false)
-      setUploadProgress(null)
-      setDbProgress(null)
-      if (typeof onUploadingChange === 'function') onUploadingChange(false)
+      done(false)
+    } catch (err) {
+      toast.error(err?.message || 'Upload failed')
+      done(false)
     }
-
-    xhr.onerror = () => {
-      toast.error('Network error')
-      setUploading(false)
-      setUploadProgress(null)
-      setDbProgress(null)
-      if (typeof onUploadingChange === 'function') onUploadingChange(false)
-    }
-
-    xhr.open('POST', url)
-    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`)
-    xhr.send(form)
   }
 
   return (
