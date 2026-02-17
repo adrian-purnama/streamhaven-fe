@@ -29,6 +29,7 @@ function StagingTab() {
   const [uploadedTotal, setUploadedTotal] = useState(0)
   const [uploadedLoading, setUploadedLoading] = useState(false)
   const [uploadedSkip, setUploadedSkip] = useState(0)
+  const [uploadedSyncing, setUploadedSyncing] = useState(false)
 
   const fetchProcessStatus = useCallback(async () => {
     try {
@@ -93,6 +94,16 @@ function StagingTab() {
   useEffect(() => {
     if (activeTab === 'success') fetchUploaded()
   }, [activeTab, fetchUploaded])
+
+  const runSyncUploaded = async () => {
+    setUploadedSyncing(true)
+    try {
+      const { data } = await apiHelper.get('/api/uploaded-videos/sync')
+      if (data?.success) await fetchUploaded()
+    } finally {
+      setUploadedSyncing(false)
+    }
+  }
 
   const runProcess = async () => {
     setProcessLoading(true)
@@ -330,7 +341,17 @@ function StagingTab() {
 
       {activeTab === 'success' && (
         <div className="rounded-xl border border-gray-700 bg-gray-800/50 p-6">
-          <h3 className="text-gray-200 font-medium mb-2">Successful uploads</h3>
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+            <h3 className="text-gray-200 font-medium">Successful uploads</h3>
+            <button
+              type="button"
+              onClick={runSyncUploaded}
+              disabled={uploadedSyncing || uploadedLoading}
+              className="px-3 py-1.5 rounded-lg border border-gray-600 text-gray-300 text-sm hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {uploadedSyncing ? 'Syncing…' : 'Sync'}
+            </button>
+          </div>
           <p className="text-gray-400 text-sm mb-4">Videos uploaded to Abyss. Status: not ready yet (processing) or ready.</p>
           {uploadedLoading ? (
             <p className="text-gray-500 text-sm py-8">Loading…</p>
