@@ -1,14 +1,26 @@
 import { useState, useRef, useEffect } from 'react'
 import toast from 'react-hot-toast'
 import SearchMovieForm from '../forms/SearchMovieForm'
+import apiHelper from '../../helper/apiHelper'
 import { baseURL } from '../../helper/apiHelper'
 
 const ACCEPT = 'video/mp4,video/webm,video/x-matroska,.mp4,.webm,.mkv'
 const STAGING_UPLOAD_KEY = 'stagingUpload' // { uploadId, fileName, totalChunks, startedAt } – for resume/poll after reload
 const UPLOAD_STATUS_POLL_MS = 2500
 
+const TABS = [
+  { id: 'manual', label: 'Manual upload' },
+  { id: 'queue', label: 'Queue' },
+]
+
 function SearchUploadTab({ onUploadingChange }) {
+  const [activeTab, setActiveTab] = useState('manual')
   const [selectedMovieForUpload, setSelectedMovieForUpload] = useState(null)
+  const [queueList, setQueueList] = useState([])
+  const [queueTotal, setQueueTotal] = useState(0)
+  const [queueLoading, setQueueLoading] = useState(false)
+  const [queueMovie, setQueueMovie] = useState(null)
+  const [processing, setProcessing] = useState(false)
   const [file, setFile] = useState(null)
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(null) // 0–100 sending file
@@ -19,6 +31,7 @@ function SearchUploadTab({ onUploadingChange }) {
   const [dragOver, setDragOver] = useState(false)
   const inputRef = useRef(null)
   const pollIntervalRef = useRef(null)
+  const startedNextForJobRef = useRef(new Set())
 
   // On mount only: if we have a saved upload id (e.g. after reload), poll upload-status and show progress until done/error/404
   useEffect(() => {
@@ -107,6 +120,132 @@ function SearchUploadTab({ onUploadingChange }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run only on mount so restore is stable after refresh
   }, [])
 
+  const fetchQueue = async () => {
+    setQueueLoading(true)
+    try {
+      const res = await apiHelper.get('/api/download-queue', { params: { limit: 100 } })
+      const data = res.data?.data || {}
+      setQueueList(Array.isArray(data.list) ? data.list : [])
+      setQueueTotal(Number(data.total) || 0)
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Failed to load queue')
+      setQueueList([])
+      setQueueTotal(0)
+    } finally {
+      setQueueLoading(false)
+    }
+  }
+
+  /** Poll only the active job and merge into list (no full refetch, no loading state). When job becomes done/failed, start next waiting (fallback if webhook didn't). */
+  const fetchActiveJobProgress = async (jobId) => {
+    if (!jobId) return
+    try {
+      const res = await apiHelper.get(`/api/download-queue/job/${encodeURIComponent(jobId)}`)
+      const job = res.data?.data
+      if (!job) return
+      setQueueList((prev) =>
+        prev.map((item) => (item.jobId === jobId || item._id === job._id ? { ...item, ...job } : item))
+      )
+      if (job.status === 'done' || job.status === 'failed') {
+        const key = job._id || jobId
+        if (!startedNextForJobRef.current.has(key)) {
+          startedNextForJobRef.current.add(key)
+          apiHelper.post('/api/download-queue/process/start').then(() => fetchQueue()).catch(() => fetchQueue())
+        }
+      }
+    } catch {
+      // ignore (e.g. 404 or rate limit); avoid toast on background poll
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab === 'queue') fetchQueue()
+  }, [activeTab])
+
+  const queueStatusBadgeClass = (status) => {
+    switch (status) {
+      case 'pending':
+        return 'bg-amber-500/20 text-amber-400 border-amber-500/40'
+      case 'waiting':
+        return 'bg-cyan-500/20 text-cyan-400 border-cyan-500/40'
+      case 'downloading':
+      case 'uploading':
+        return 'bg-blue-500/20 text-blue-400 border-blue-500/40'
+      case 'done':
+        return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
+      case 'failed':
+        return 'bg-red-500/20 text-red-400 border-red-500/40'
+      default:
+        return 'bg-gray-500/20 text-gray-400 border-gray-500/40'
+    }
+  }
+
+  const activeJob = queueList.find((i) => i.status === 'uploading' || i.status === 'downloading')
+  const activeJobId = activeJob?.jobId || activeJob?._id
+  useEffect(() => {
+    if (activeTab !== 'queue' || !activeJobId) return
+    const interval = setInterval(() => fetchActiveJobProgress(activeJobId), 6000)
+    return () => clearInterval(interval)
+  }, [activeTab, activeJobId])
+
+  const addToQueue = async () => {
+    const movie = queueMovie
+    if (!movie?.title && !movie?.id) {
+      toast.error('Search and select a movie first')
+      return
+    }
+    const title = movie.title ? `${movie.title}${movie.release_date ? ` ${new Date(movie.release_date).getFullYear()}` : ''}`.trim() : `TMDB ${movie.id}`
+    try {
+      await apiHelper.post('/api/download-queue', {
+        title,
+        tmdbId: movie.id ?? null,
+        poster_path: movie.poster_path || movie.poster_url || null,
+        year: movie.release_date ? new Date(movie.release_date).getFullYear() : null,
+      })
+      toast.success('Added to download queue')
+      setQueueMovie(null)
+      fetchQueue()
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Failed to add to queue')
+    }
+  }
+
+  const deleteQueueItem = async (id) => {
+    try {
+      await apiHelper.delete(`/api/download-queue/${id}`)
+      toast.success('Removed from queue')
+      fetchQueue()
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Failed to remove')
+    }
+  }
+
+  const processNext = async () => {
+    setProcessing(true)
+    try {
+      const res = await apiHelper.post('/api/download-queue/process')
+      const moved = res.data?.data?.moved ?? 0
+      toast.success(moved === 1 ? 'Moved 1 item to waiting' : `Moved ${moved} items to waiting`)
+      fetchQueue()
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Process failed')
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  const startNext = async () => {
+    setProcessing(true)
+    try {
+      await apiHelper.post('/api/download-queue/process/start')
+      toast.success('Started download')
+      fetchQueue()
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Start failed')
+    } finally {
+      setProcessing(false)
+    }
+  }
 
   const addFile = (list) => {
     const f = list?.[0]
@@ -283,6 +422,138 @@ function SearchUploadTab({ onUploadingChange }) {
 
   return (
     <div className="p-6 space-y-6">
+      <div className="flex gap-1 border-b border-gray-700">
+        {TABS.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              activeTab === tab.id
+                ? 'border-amber-500 text-amber-400'
+                : 'border-transparent text-gray-400 hover:text-gray-300'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'queue' && (
+        <div className="space-y-6">
+          <SearchMovieForm
+            description="Search for a movie by TMDB or IMDB ID, then add it to the download queue (torrent → staging)."
+            onMovieSelect={setQueueMovie}
+            renderActions={
+              queueMovie
+                ? () => (
+                    <button
+                      type="button"
+                      onClick={addToQueue}
+                      className="px-4 py-2 rounded-lg bg-amber-500 text-gray-900 font-medium hover:bg-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    >
+                      Add to queue
+                    </button>
+                  )
+                : undefined
+            }
+          />
+          <div className="rounded-xl border border-gray-700 bg-gray-800/50 p-4 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-sm font-medium text-gray-300">Download queue</h3>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={processNext}
+                  disabled={processing || queueLoading || !queueList.some((i) => i.status === 'pending')}
+                  className="px-3 py-1.5 rounded-lg bg-amber-500 text-gray-900 text-sm font-medium hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Move next pending job to waiting"
+                >
+                  {processing ? '…' : 'Move to waiting'}
+                </button>
+                <button
+                  type="button"
+                  onClick={startNext}
+                  disabled={processing || queueLoading || !queueList.some((i) => i.status === 'waiting')}
+                  className="px-3 py-1.5 rounded-lg bg-emerald-500 text-gray-900 text-sm font-medium hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Process next waiting job (call downloader)"
+                >
+                  {processing ? '…' : 'Process waiting'}
+                </button>
+              </div>
+            </div>
+            {queueLoading ? (
+              <p className="text-gray-500 text-sm">Loading queue…</p>
+            ) : queueList.length === 0 ? (
+              <p className="text-gray-500 text-sm">No items in queue. Search and add above.</p>
+            ) : (
+              <ul className="space-y-2 max-h-80 overflow-y-auto">
+                {queueList.map((item) => (
+                  <li
+                    key={item._id}
+                    className="flex items-center gap-3 py-2 px-3 rounded-lg bg-gray-800 border border-gray-700"
+                  >
+                    <div className="w-12 h-[72px] shrink-0 rounded overflow-hidden bg-gray-700">
+                      {item.poster_url ? (
+                        <img src={item.poster_url} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs">No poster</div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-gray-200 text-sm font-medium truncate">{item.title}</p>
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1">
+                        <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium border ${queueStatusBadgeClass(item.status)}`}>
+                          {item.status}
+                        </span>
+                        {item.status === 'uploading' && (item.uploadChunkIndex != null && item.uploadChunkTotal != null) && (
+                          <span className="text-gray-500 text-xs">
+                            Chunk {item.uploadChunkIndex}/{item.uploadChunkTotal}
+                            {item.uploadProgress != null ? ` · Writing ${item.uploadProgress}%` : ''}
+                          </span>
+                        )}
+                      </div>
+                      {item.errorMessage && (
+                        <p className="text-red-400 text-xs mt-1 truncate" title={item.errorMessage}>{item.errorMessage}</p>
+                      )}
+                      {item.status === 'uploading' && (item.uploadChunkTotal != null && item.uploadChunkTotal > 0) && (
+                        <div className="mt-1.5 space-y-0.5">
+                          <div className="h-1.5 w-full rounded-full bg-gray-700 overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-amber-500 transition-[width] duration-300"
+                              style={{
+                                width: `${Math.min(
+                                  100,
+                                  ((item.uploadChunkIndex ?? 0) / item.uploadChunkTotal) * 80 + ((item.uploadProgress ?? 0) / 100) * 20
+                                )}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => deleteQueueItem(item._id)}
+                      disabled={item.status === 'downloading' || item.status === 'uploading'}
+                      className="shrink-0 px-2 py-1 rounded text-red-400 hover:bg-red-500/20 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      title={item.status === 'downloading' || item.status === 'uploading' ? 'Cannot delete while in progress' : 'Remove from queue'}
+                    >
+                      Delete
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {queueTotal > 0 && (
+              <p className="text-gray-500 text-xs">Total: {queueTotal}</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'manual' && (
+        <>
       {uploading && (
         <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-4 space-y-3">
           <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 px-3 py-2 text-sm text-amber-200/90">
@@ -393,6 +664,8 @@ function SearchUploadTab({ onUploadingChange }) {
             <p className="text-sm text-gray-500">Progress is shown at the top of this page.</p>
           )}
         </div>
+      )}
+        </>
       )}
     </div>
   )
