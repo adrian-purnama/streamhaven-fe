@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import apiHelper from '../../helper/apiHelper'
+import Modal from '../Modal'
 
 const PAGE_SIZE = 20
 
@@ -24,6 +25,7 @@ function StagingTab() {
   const [processError, setProcessError] = useState(null)
 
   const [purging, setPurging] = useState(false)
+  const [purgeConfirmOpen, setPurgeConfirmOpen] = useState(false)
 
   const [uploadedList, setUploadedList] = useState([])
   const [uploadedTotal, setUploadedTotal] = useState(0)
@@ -123,7 +125,6 @@ function StagingTab() {
   }
 
   const purgeAllUploads = async () => {
-    if (!window.confirm('Delete all staging videos, in-progress uploads, and temp files? This cannot be undone.')) return
     setPurging(true)
     setProcessError(null)
     try {
@@ -134,6 +135,7 @@ function StagingTab() {
         setProcessStatus(null)
         fetchStaging()
         fetchProcessStatus()
+        setPurgeConfirmOpen(false)
       } else {
         setProcessError(data?.message || 'Purge failed')
       }
@@ -169,7 +171,7 @@ function StagingTab() {
   const slugStatusLabel = (slugStatus) => (slugStatus === 'ready' ? 'Ready' : 'Not ready yet')
 
   return (
-    <div className="space-y-4">
+    <div className="p-6 space-y-6">
       <div className="flex gap-1 border-b border-gray-700">
         {TABS.map((tab) => (
           <button
@@ -194,7 +196,7 @@ function StagingTab() {
             <div className="flex gap-2">
               <button
                 type="button"
-                onClick={purgeAllUploads}
+                onClick={() => setPurgeConfirmOpen(true)}
                 disabled={purging}
                 className="px-4 py-2 rounded-lg border border-red-500/60 text-red-400 font-medium hover:bg-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -218,34 +220,51 @@ function StagingTab() {
           ) : (
             <>
               <ul className="space-y-4">
-                {stagingList.map((item) => (
-                  <li
-                    key={item._id}
-                    className="flex flex-wrap sm:flex-nowrap gap-4 p-4 rounded-lg border border-gray-700 bg-gray-800/50"
-                  >
-                    <div className="shrink-0 w-20 h-[120px] rounded-lg overflow-hidden bg-gray-700">
-                      {item.poster_url ? (
-                        <img src={item.poster_url} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs">No poster</div>
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <p className="text-gray-200 font-medium truncate">{item.title || item.filename || '—'}</p>
-                      <p className="text-gray-500 text-sm truncate">{item.filename}</p>
-                      <p className="text-gray-500 text-xs">
-                        {(item.size / (1024 * 1024)).toFixed(2)} MB
-                        {item.tmdbId != null && ` · TMDB ${item.tmdbId}`}
-                      </p>
-                      <span className={`inline-block mt-1 px-2 py-0.5 rounded text-xs font-medium border ${statusBadgeClass(item.status)}`}>
-                        {item.status}
-                      </span>
-                      {item.status === 'error' && item.errorMessage && (
-                        <p className="text-red-400 text-xs mt-1 truncate" title={item.errorMessage}>{item.errorMessage}</p>
-                      )}
-                    </div>
-                  </li>
-                ))}
+                {stagingList.map((item) => {
+                  const inRun = processStatus?.items?.some((i) => i.stagingId === item._id)
+                  const isCurrent = processStatus?.currentStagingId === item._id
+                  const doneCount = (processStatus?.processed ?? 0) + (processStatus?.failed ?? 0)
+                  const runIndex = processStatus?.items?.findIndex((i) => i.stagingId === item._id) ?? -1
+                  const waitingInLine = inRun && !isCurrent && runIndex >= doneCount
+                  const queueLabel = isCurrent ? 'Uploading to Abyss' : waitingInLine ? 'Waiting in line' : null
+                  return (
+                    <li
+                      key={item._id}
+                      className={`flex flex-wrap sm:flex-nowrap gap-4 p-4 rounded-lg border bg-gray-800/50 ${
+                        isCurrent ? 'border-amber-500/50' : waitingInLine ? 'border-gray-600' : 'border-gray-700'
+                      }`}
+                    >
+                      <div className="shrink-0 w-20 h-[120px] rounded-lg overflow-hidden bg-gray-700">
+                        {item.poster_url ? (
+                          <img src={item.poster_url} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs">No poster</div>
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <p className="text-gray-200 font-medium truncate">{item.title || item.filename || '—'}</p>
+                        <p className="text-gray-500 text-sm truncate">{item.filename}</p>
+                        <p className="text-gray-500 text-xs">
+                          {(item.size / (1024 * 1024)).toFixed(2)} MB
+                          {item.tmdbId != null && ` · TMDB ${item.tmdbId}`}
+                        </p>
+                        <span className={`inline-block mt-1 px-2 py-0.5 rounded text-xs font-medium border ${statusBadgeClass(item.status)}`}>
+                          {item.status}
+                        </span>
+                        {queueLabel && (
+                          <span className={`ml-2 inline-block mt-1 px-2 py-0.5 rounded text-xs font-medium border ${
+                            isCurrent ? 'bg-amber-500/20 text-amber-400 border-amber-500/40' : 'bg-gray-600/30 text-gray-400 border-gray-500/40'
+                          }`}>
+                            {queueLabel}
+                          </span>
+                        )}
+                        {item.status === 'error' && item.errorMessage && (
+                          <p className="text-red-400 text-xs mt-1 truncate" title={item.errorMessage}>{item.errorMessage}</p>
+                        )}
+                      </div>
+                    </li>
+                  )
+                })}
               </ul>
               {stagingTotal > PAGE_SIZE && (
                 <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-700">
@@ -416,6 +435,36 @@ function StagingTab() {
           )}
         </div>
       )}
+
+      <Modal
+        open={purgeConfirmOpen}
+        onClose={() => !purging && setPurgeConfirmOpen(false)}
+        title="Purge all?"
+      >
+        <div className="space-y-4">
+          <p className="text-gray-300">
+            Delete all staging videos, in-progress uploads, and temp files? This cannot be undone.
+          </p>
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setPurgeConfirmOpen(false)}
+              disabled={purging}
+              className="px-4 py-2 rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={purgeAllUploads}
+              disabled={purging}
+              className="px-4 py-2 rounded-lg bg-red-500 text-white font-medium hover:bg-red-400 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {purging ? 'Purging…' : 'Purge all'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

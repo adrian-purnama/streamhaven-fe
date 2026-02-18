@@ -7,6 +7,43 @@ import { baseURL } from '../../helper/apiHelper'
 const ACCEPT = 'video/mp4,video/webm,video/x-matroska,.mp4,.webm,.mkv'
 const STAGING_UPLOAD_KEY = 'stagingUpload' // { uploadId, fileName, totalChunks, startedAt } – for resume/poll after reload
 const UPLOAD_STATUS_POLL_MS = 2500
+const BYTE_DISPLAY_KEY = 'downloadQueueByteDisplay'
+
+/** Format stall_seconds_remaining as "Xm Ys" or "Xs" for display. */
+function formatStallCountdown(seconds) {
+  if (seconds == null || seconds < 0) return null
+  const s = Math.floor(Number(seconds))
+  if (s >= 60) {
+    const m = Math.floor(s / 60)
+    const r = s % 60
+    return r > 0 ? `${m}m ${r}s` : `${m}m`
+  }
+  return `${s}s`
+}
+
+/** Format bytes by chosen mode: raw (locale string), kb, mb, gb, or dynamic (pick unit by size). */
+function formatBytesByMode(bytes, mode) {
+  if (bytes == null || bytes === undefined) return '—'
+  const n = Number(bytes)
+  if (Number.isNaN(n)) return '—'
+  if (mode === 'raw') return n.toLocaleString()
+  if (mode === 'kb') return `${(n / 1024).toFixed(1)} KB`
+  if (mode === 'mb') return `${(n / (1024 * 1024)).toFixed(1)} MB`
+  if (mode === 'gb') return `${(n / (1024 * 1024 * 1024)).toFixed(1)} GB`
+  // dynamic
+  if (n < 1024) return `${n} B`
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`
+  if (n < 1024 * 1024 * 1024) return `${(n / (1024 * 1024)).toFixed(1)} MB`
+  return `${(n / (1024 * 1024 * 1024)).toFixed(1)} GB`
+}
+
+const BYTE_DISPLAY_OPTIONS = [
+  { id: 'raw', label: 'Raw' },
+  { id: 'kb', label: 'KB' },
+  { id: 'mb', label: 'MB' },
+  { id: 'gb', label: 'GB' },
+  { id: 'dynamic', label: 'Dynamic' },
+]
 
 const TABS = [
   { id: 'manual', label: 'Manual upload' },
@@ -21,6 +58,14 @@ function SearchUploadTab({ onUploadingChange }) {
   const [queueLoading, setQueueLoading] = useState(false)
   const [queueMovie, setQueueMovie] = useState(null)
   const [processing, setProcessing] = useState(false)
+  const [downloaderProgress, setDownloaderProgress] = useState(null) // { phase, download: { bytes_done, bytes_total, error }, upload: { bytes_sent, bytes_total, percent, phase, error } }
+  const [byteDisplayMode, setByteDisplayMode] = useState(() => {
+    try {
+      const s = localStorage.getItem(BYTE_DISPLAY_KEY)
+      if (BYTE_DISPLAY_OPTIONS.some((o) => o.id === s)) return s
+    } catch { /* ignore */ }
+    return 'dynamic'
+  })
   const [file, setFile] = useState(null)
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(null) // 0–100 sending file
@@ -136,28 +181,6 @@ function SearchUploadTab({ onUploadingChange }) {
     }
   }
 
-  /** Poll only the active job and merge into list (no full refetch, no loading state). When job becomes done/failed, start next waiting (fallback if webhook didn't). */
-  const fetchActiveJobProgress = async (jobId) => {
-    if (!jobId) return
-    try {
-      const res = await apiHelper.get(`/api/download-queue/job/${encodeURIComponent(jobId)}`)
-      const job = res.data?.data
-      if (!job) return
-      setQueueList((prev) =>
-        prev.map((item) => (item.jobId === jobId || item._id === job._id ? { ...item, ...job } : item))
-      )
-      if (job.status === 'done' || job.status === 'failed') {
-        const key = job._id || jobId
-        if (!startedNextForJobRef.current.has(key)) {
-          startedNextForJobRef.current.add(key)
-          apiHelper.post('/api/download-queue/process/start').then(() => fetchQueue()).catch(() => fetchQueue())
-        }
-      }
-    } catch {
-      // ignore (e.g. 404 or rate limit); avoid toast on background poll
-    }
-  }
-
   useEffect(() => {
     if (activeTab === 'queue') fetchQueue()
   }, [activeTab])
@@ -180,13 +203,52 @@ function SearchUploadTab({ onUploadingChange }) {
     }
   }
 
-  const activeJob = queueList.find((i) => i.status === 'uploading' || i.status === 'downloading')
-  const activeJobId = activeJob?.jobId || activeJob?._id
+  // WebSocket: stream downloader progress when on Queue tab (connect so we get updates as soon as a job runs)
   useEffect(() => {
-    if (activeTab !== 'queue' || !activeJobId) return
-    const interval = setInterval(() => fetchActiveJobProgress(activeJobId), 6000)
-    return () => clearInterval(interval)
-  }, [activeTab, activeJobId])
+    if (activeTab !== 'queue') {
+      setDownloaderProgress(null)
+      return
+    }
+    const token = typeof localStorage !== 'undefined' ? localStorage.getItem('fc-token') : null
+    if (!token) return
+    const wsProtocol = baseURL.startsWith('https') ? 'wss:' : 'ws:'
+    const wsHost = baseURL.replace(/^https?:\/\//, '')
+    const wsUrl = `${wsProtocol}//${wsHost}/ws/download-queue/progress?token=${encodeURIComponent(token)}`
+    let ws = null
+    try {
+      ws = new WebSocket(wsUrl)
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data)
+          setDownloaderProgress(data)
+          if (data.job) {
+            const job = data.job
+            setQueueList((prev) =>
+              prev.map((item) => (item.jobId === job.jobId || item._id === job._id ? { ...item, ...job } : item))
+            )
+            if (job.status === 'done' || job.status === 'failed') {
+              const key = job._id || job.jobId
+              if (!startedNextForJobRef.current.has(key)) {
+                startedNextForJobRef.current.add(key)
+                apiHelper.post('/api/download-queue/process/start').then(() => fetchQueue()).catch(() => fetchQueue())
+              }
+            }
+          }
+        } catch {
+          setDownloaderProgress(null)
+        }
+      }
+      ws.onclose = () => setDownloaderProgress(null)
+      ws.onerror = () => setDownloaderProgress(null)
+    } catch {
+      setDownloaderProgress(null)
+    }
+    return () => {
+      if (ws) {
+        try { ws.close() } catch { /* ignore */ }
+      }
+    }
+  }, [activeTab])
 
   const addToQueue = async () => {
     const movie = queueMovie
@@ -420,6 +482,16 @@ function SearchUploadTab({ onUploadingChange }) {
     }
   }
 
+  /** Format updatedAt (Unix s) as "Xs ago" for live indicator */
+  const downloaderUpdatedAgo = (() => {
+    const u = downloaderProgress?.updatedAt
+    if (u == null) return null
+    const sec = Math.max(0, Math.floor(Date.now() / 1000 - Number(u)))
+    if (sec < 5) return 'just now'
+    if (sec < 60) return `${sec}s ago`
+    return `${Math.floor(sec / 60)}m ago`
+  })()
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex gap-1 border-b border-gray-700">
@@ -458,10 +530,112 @@ function SearchUploadTab({ onUploadingChange }) {
                 : undefined
             }
           />
+
+          {/* Downloader live progress: all streamed fields from backend WS (polled from downloader) */}
+          {downloaderProgress != null && (
+            <div className="rounded-xl border border-cyan-500/40 bg-gray-800/50 p-4 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-sm font-medium text-cyan-200">Downloader live progress</h3>
+                <span className="text-gray-500 text-xs">
+                  {downloaderProgress.error ? `Backend: ${downloaderProgress.error}` : downloaderUpdatedAgo ? `Streamed ${downloaderUpdatedAgo}` : 'Streamed'}
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                <div className="flex flex-wrap gap-x-3 gap-y-1 text-gray-400">
+                  <span><strong className="text-gray-300">Phase:</strong> {downloaderProgress.phase ?? '—'}</span>
+                  {downloaderProgress.jobId != null && <span><strong className="text-gray-300">JobId:</strong> <span className="font-mono truncate max-w-[120px] inline-block align-bottom" title={String(downloaderProgress.jobId)}>{String(downloaderProgress.jobId)}</span></span>}
+                  {downloaderProgress.download?.attempt != null && <span><strong className="text-gray-300">Attempt:</strong> {downloaderProgress.download.attempt}</span>}
+                  {downloaderProgress.download?.torrent_name != null && <span className="min-w-0" title={downloaderProgress.download.torrent_name}><strong className="text-gray-300">Torrent:</strong> <span className="truncate max-w-[180px] inline-block align-bottom">{downloaderProgress.download.torrent_name}</span></span>}
+                  {downloaderProgress.download?.seeders != null && <span><strong className="text-gray-300">Seeders:</strong> {downloaderProgress.download.seeders}</span>}
+                  {downloaderProgress.phase === 'downloading' && downloaderProgress.download?.stall_seconds_remaining != null && (
+                    <span className="text-amber-300/90" title="No new data for this long will be considered stalled">
+                      Stall in {formatStallCountdown(downloaderProgress.download.stall_seconds_remaining)}
+                    </span>
+                  )}
+                </div>
+                {downloaderProgress.updatedAt != null && (
+                  <div className="text-gray-500 text-xs"><strong className="text-gray-300">UpdatedAt:</strong> {new Date(Number(downloaderProgress.updatedAt) * 1000).toISOString()}</div>
+                )}
+              </div>
+              {downloaderProgress.download && (downloaderProgress.download.bytes_done != null || downloaderProgress.download.error) && (
+                <div className="space-y-1">
+                  <div className="flex justify-between text-xs text-gray-400">
+                    <span>Download (torrent)</span>
+                    <span>
+                      {formatBytesByMode(downloaderProgress.download.bytes_done, byteDisplayMode)}
+                      {downloaderProgress.download.bytes_total != null ? ` / ${formatBytesByMode(downloaderProgress.download.bytes_total, byteDisplayMode)}` : ''}
+                    </span>
+                  </div>
+                  <div className="h-1.5 w-full rounded-full bg-gray-700 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-cyan-500 transition-[width] duration-300"
+                      style={{
+                        width: (() => {
+                          const total = Number(downloaderProgress.download.bytes_total)
+                          const done = Number(downloaderProgress.download.bytes_done)
+                          if (!total || Number.isNaN(done)) return '0%'
+                          return `${Math.min(100, (done / total) * 100)}%`
+                        })(),
+                      }}
+                    />
+                  </div>
+                  {downloaderProgress.download.stall_seconds_remaining != null && downloaderProgress.phase === 'downloading' && (
+                    <p className="text-amber-300/90 text-xs">Considered stalled in {formatStallCountdown(downloaderProgress.download.stall_seconds_remaining)} if no progress</p>
+                  )}
+                  {downloaderProgress.download.error && (
+                    <p className="text-red-400 text-xs" title={downloaderProgress.download.error}>{downloaderProgress.download.error}</p>
+                  )}
+                </div>
+              )}
+              {downloaderProgress.upload && (downloaderProgress.upload.bytes_sent != null || downloaderProgress.upload.error) && (
+                <div className="space-y-1">
+                  <div className="flex justify-between text-xs text-gray-400">
+                    <span>Upload to staging</span>
+                    <span>
+                      {downloaderProgress.upload.percent != null ? `${downloaderProgress.upload.percent}%` : ''}
+                      {downloaderProgress.upload.bytes_sent != null && downloaderProgress.upload.bytes_total != null
+                        ? ` · ${formatBytesByMode(downloaderProgress.upload.bytes_sent, byteDisplayMode)} / ${formatBytesByMode(downloaderProgress.upload.bytes_total, byteDisplayMode)}`
+                        : ''}
+                    </span>
+                  </div>
+                  <div className="h-1.5 w-full rounded-full bg-gray-700 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-amber-500 transition-[width] duration-300"
+                      style={{ width: `${Number(downloaderProgress.upload.percent) || 0}%` }}
+                    />
+                  </div>
+                  {downloaderProgress.upload.error && (
+                    <p className="text-red-400 text-xs" title={downloaderProgress.upload.error}>{downloaderProgress.upload.error}</p>
+                  )}
+                </div>
+              )}
+              {downloaderProgress.phase === 'idle' && !downloaderProgress.download?.bytes_done && !downloaderProgress.upload?.bytes_sent && !downloaderProgress.error && (
+                <p className="text-gray-500 text-xs">No active job. Start a waiting job to see live progress.</p>
+              )}
+            </div>
+          )}
+
           <div className="rounded-xl border border-gray-700 bg-gray-800/50 p-4 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-sm font-medium text-gray-300">Download queue</h3>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-gray-500 text-xs">Size:</span>
+                <div className="flex rounded-lg border border-gray-600 overflow-hidden">
+                  {BYTE_DISPLAY_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => {
+                        setByteDisplayMode(opt.id)
+                        try { localStorage.setItem(BYTE_DISPLAY_KEY, opt.id) } catch { /* ignore */ }
+                      }}
+                      className={`px-2 py-1 text-xs font-medium transition-colors ${byteDisplayMode === opt.id ? 'bg-amber-500/30 text-amber-200 border-amber-500/50' : 'bg-gray-700/50 text-gray-400 hover:bg-gray-600/50 border-transparent'}`}
+                      title={opt.id === 'dynamic' ? 'B / KB / MB / GB by size' : `Show bytes as ${opt.label}`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
                 <button
                   type="button"
                   onClick={processNext}
@@ -504,8 +678,13 @@ function SearchUploadTab({ onUploadingChange }) {
                       <p className="text-gray-200 text-sm font-medium truncate">{item.title}</p>
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1">
                         <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium border ${queueStatusBadgeClass(item.status)}`}>
-                          {item.status}
+                          DB : {item.status}
                         </span>
+                        {downloaderProgress && downloaderProgress.phase && (String(downloaderProgress.jobId || '') === String(item.jobId || '') || String(downloaderProgress.jobId || '') === String(item._id || '')) && (
+                          <span className="inline-block px-2 py-0.5 rounded text-xs font-medium border bg-amber-500/20 text-amber-400 border-amber-500/40">
+                            DL : {downloaderProgress.phase}
+                          </span>
+                        )}
                         {item.status === 'uploading' && (item.uploadChunkIndex != null && item.uploadChunkTotal != null) && (
                           <span className="text-gray-500 text-xs">
                             Chunk {item.uploadChunkIndex}/{item.uploadChunkTotal}
@@ -513,10 +692,78 @@ function SearchUploadTab({ onUploadingChange }) {
                           </span>
                         )}
                       </div>
+                      {/* Downloader progress: only when this row is the job we have progress for (so bar updates with WS data) */}
+                      {(item.status === 'downloading' || item.status === 'uploading') && downloaderProgress && (String(downloaderProgress.jobId || '') === String(item.jobId || '') || String(downloaderProgress.jobId || '') === String(item._id || '')) && (
+                        <div className="mt-2 space-y-1.5 text-xs">
+                          {downloaderProgress.download && (Number(downloaderProgress.download.bytes_done) > 0 || downloaderProgress.download.error) && (
+                            <div>
+                              <div className="flex justify-between text-gray-400 flex-wrap gap-y-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span>Download (torrent)</span>
+                                  {downloaderProgress.download.attempt != null && (
+                                    <span className="text-gray-500">Attempt {downloaderProgress.download.attempt}</span>
+                                  )}
+                                  {downloaderProgress.download.torrent_name != null && (
+                                    <span className="text-gray-500 truncate max-w-[160px]" title={downloaderProgress.download.torrent_name}>{downloaderProgress.download.torrent_name}</span>
+                                  )}
+                                  {downloaderProgress.download.seeders != null && (
+                                    <span className="text-gray-500" title="Seeders (from search when torrent was chosen)">Seeders: {downloaderProgress.download.seeders}</span>
+                                  )}
+                                </div>
+                                <span>
+                                  {formatBytesByMode(downloaderProgress.download.bytes_done, byteDisplayMode)}
+                                  {downloaderProgress.download.bytes_total != null ? ` / ${formatBytesByMode(downloaderProgress.download.bytes_total, byteDisplayMode)}` : ''}
+                                </span>
+                              </div>
+                              <div className="h-1.5 w-full rounded-full bg-gray-700 overflow-hidden">
+                                <div
+                                  className="h-full rounded-full bg-cyan-500 transition-[width] duration-300"
+                                  style={{
+                                    width: (() => {
+                                      const total = Number(downloaderProgress.download.bytes_total)
+                                      const done = Number(downloaderProgress.download.bytes_done)
+                                      if (!total || Number.isNaN(done)) return '0%'
+                                      return `${Math.min(100, (done / total) * 100)}%`
+                                    })(),
+                                  }}
+                                />
+                              </div>
+                              {downloaderProgress.download.stall_seconds_remaining != null && downloaderProgress.phase === 'downloading' && (
+                                <p className="text-amber-300/90 text-xs">Stall in {formatStallCountdown(downloaderProgress.download.stall_seconds_remaining)}</p>
+                              )}
+                              {downloaderProgress.download.error && (
+                                <p className="text-red-400 truncate" title={downloaderProgress.download.error}>{downloaderProgress.download.error}</p>
+                              )}
+                            </div>
+                          )}
+                          {downloaderProgress.upload && (Number(downloaderProgress.upload.bytes_sent) > 0) && (
+                            <div>
+                              <div className="flex justify-between text-gray-400">
+                                <span>Upload to staging</span>
+                                <span>
+                                  {downloaderProgress.upload.percent != null ? `${downloaderProgress.upload.percent}%` : ''}
+                                  {downloaderProgress.upload.bytes_sent != null && downloaderProgress.upload.bytes_total != null
+                                    ? ` · ${formatBytesByMode(downloaderProgress.upload.bytes_sent, byteDisplayMode)} / ${formatBytesByMode(downloaderProgress.upload.bytes_total, byteDisplayMode)}`
+                                    : ''}
+                                </span>
+                              </div>
+                              <div className="h-1.5 w-full rounded-full bg-gray-700 overflow-hidden">
+                                <div
+                                  className="h-full rounded-full bg-amber-500 transition-[width] duration-300"
+                                  style={{ width: `${Number(downloaderProgress.upload.percent) || 0}%` }}
+                                />
+                              </div>
+                              {downloaderProgress.upload.error && (
+                                <p className="text-red-400 truncate" title={downloaderProgress.upload.error}>{downloaderProgress.upload.error}</p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
                       {item.errorMessage && (
                         <p className="text-red-400 text-xs mt-1 truncate" title={item.errorMessage}>{item.errorMessage}</p>
                       )}
-                      {item.status === 'uploading' && (item.uploadChunkTotal != null && item.uploadChunkTotal > 0) && (
+                      {item.status === 'uploading' && (item.uploadChunkTotal != null && item.uploadChunkTotal > 0) && !downloaderProgress?.upload?.bytes_sent && (
                         <div className="mt-1.5 space-y-0.5">
                           <div className="h-1.5 w-full rounded-full bg-gray-700 overflow-hidden">
                             <div

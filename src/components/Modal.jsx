@@ -3,13 +3,13 @@ function Modal({ open, onClose, title, children }) {
 
   return (
     <div
-      className="fixed inset-0 bg-black/60 flex items-center justify-center z-10000 p-2 sm:p-4 overflow-y-auto overscroll-contain"
+      className="modal-backdrop fixed inset-0 bg-black/60 flex items-center justify-center z-10000 p-2 sm:p-4 overflow-y-auto overscroll-contain"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
     >
       <div
-        className="bg-gray-800 border border-gray-700 rounded-lg shadow-xl w-full max-w-md max-h-[min(85vh,calc(100vh-2rem))] flex flex-col overflow-hidden my-auto"
+        className="modal-dialog bg-gray-800 border border-gray-700 rounded-lg shadow-xl w-full max-w-md max-h-[min(85vh,calc(100vh-2rem))] flex flex-col overflow-hidden my-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-center p-4 sm:p-6 pb-3 sm:pb-4 shrink-0">
@@ -28,6 +28,20 @@ function Modal({ open, onClose, title, children }) {
       </div>
 
       <style>{`
+        .modal-backdrop {
+          animation: modalFadeIn 0.1s ease-out;
+        }
+        .modal-dialog {
+          animation: modalScaleIn 0.1s ease-out;
+        }
+        @keyframes modalFadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes modalScaleIn {
+          from { opacity: 0; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1); }
+        }
         .modal-scroll::-webkit-scrollbar {
           width: 6px;
         }
