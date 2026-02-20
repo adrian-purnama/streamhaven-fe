@@ -9,16 +9,19 @@ const STAGING_UPLOAD_KEY = 'stagingUpload' // { uploadId, fileName, totalChunks,
 const UPLOAD_STATUS_POLL_MS = 2500
 const BYTE_DISPLAY_KEY = 'downloadQueueByteDisplay'
 
-/** Format stall_seconds_remaining as "Xm Ys" or "Xs" for display. */
-function formatStallCountdown(seconds) {
-  if (seconds == null || seconds < 0) return null
-  const s = Math.floor(Number(seconds))
-  if (s >= 60) {
+/** Format ETA seconds as "~Xm Ys", "~Xs", or "~1h Xm". */
+function formatEtaSeconds(sec) {
+  if (sec == null || !Number.isFinite(sec) || sec < 0) return ''
+  const s = Math.round(sec)
+  if (s < 60) return `~${s}s`
+  if (s < 3600) {
     const m = Math.floor(s / 60)
     const r = s % 60
-    return r > 0 ? `${m}m ${r}s` : `${m}m`
+    return r > 0 ? `~${m}m ${r}s` : `~${m}m`
   }
-  return `${s}s`
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  return m > 0 ? `~${h}h ${m}m` : `~${h}h`
 }
 
 /** Format bytes by chosen mode: raw (locale string), kb, mb, gb, or dynamic (pick unit by size). */
@@ -58,7 +61,10 @@ function SearchUploadTab({ onUploadingChange }) {
   const [queueLoading, setQueueLoading] = useState(false)
   const [queueMovie, setQueueMovie] = useState(null)
   const [processing, setProcessing] = useState(false)
-  const [downloaderProgress, setDownloaderProgress] = useState(null) // { phase, download: { bytes_done, bytes_total, error }, upload: { bytes_sent, bytes_total, percent, phase, error } }
+  const [downloaderProgress, setDownloaderProgress] = useState(null) // { phase, jobId, explanation, download: { current_page, total_pages, error }, upload: { bytes_sent, bytes_total, percent, error } }
+  const [etaDownloadSec, setEtaDownloadSec] = useState(null)
+  const [etaUploadSec, setEtaUploadSec] = useState(null)
+  const speedRef = useRef({ lastDownload: null, lastUpload: null, speedDownload: null, speedUpload: null })
   const [byteDisplayMode, setByteDisplayMode] = useState(() => {
     try {
       const s = localStorage.getItem(BYTE_DISPLAY_KEY)
@@ -249,6 +255,69 @@ function SearchUploadTab({ onUploadingChange }) {
       }
     }
   }, [activeTab])
+
+  // Compute ETA from average speed (download: pages/sec, upload: bytes/sec)
+  useEffect(() => {
+    const p = downloaderProgress
+    if (!p) {
+      setEtaDownloadSec(null)
+      setEtaUploadSec(null)
+      speedRef.current = { lastDownload: null, lastUpload: null, speedDownload: null, speedUpload: null }
+      return
+    }
+    const now = Date.now() / 1000
+    const r = speedRef.current
+
+    // Download ETA: current_page / total_pages, speed = pages per second (exponential moving average)
+    const d = p.download
+    if (d?.current_page != null && d?.total_pages != null && (p.phase === 'downloading' || p.phase === 'uploading')) {
+      const page = Number(d.current_page)
+      const total = Number(d.total_pages)
+      const remaining = Math.max(0, total - page)
+      if (r.lastDownload != null && now - r.lastDownload.t >= 0.5) {
+        const dt = now - r.lastDownload.t
+        const dp = page - r.lastDownload.page
+        if (dt > 0 && dp >= 0) {
+          const instant = dp / dt
+          r.speedDownload = r.speedDownload == null ? instant : 0.7 * r.speedDownload + 0.3 * instant
+          if (remaining > 0 && r.speedDownload > 0) setEtaDownloadSec(remaining / r.speedDownload)
+        }
+      }
+      r.lastDownload = { t: now, page }
+      if (remaining <= 0) setEtaDownloadSec(null)
+    } else {
+      setEtaDownloadSec(null)
+      if (p.phase !== 'downloading' && p.phase !== 'uploading') {
+        r.lastDownload = null
+        r.speedDownload = null
+      }
+    }
+
+    // Upload ETA: bytes_sent / bytes_total, speed = bytes per second (exponential moving average)
+    const u = p.upload
+    if (u?.bytes_sent != null && u?.bytes_total != null && p.phase === 'uploading') {
+      const sent = Number(u.bytes_sent)
+      const total = Number(u.bytes_total)
+      const remaining = Math.max(0, total - sent)
+      if (r.lastUpload != null && now - r.lastUpload.t >= 0.5) {
+        const dt = now - r.lastUpload.t
+        const dBytes = sent - r.lastUpload.bytes
+        if (dt > 0 && dBytes >= 0) {
+          const instant = dBytes / dt
+          r.speedUpload = r.speedUpload == null ? instant : 0.7 * r.speedUpload + 0.3 * instant
+          if (remaining > 0 && r.speedUpload > 0) setEtaUploadSec(remaining / r.speedUpload)
+        }
+      }
+      r.lastUpload = { t: now, bytes: sent }
+      if (remaining <= 0) setEtaUploadSec(null)
+    } else {
+      setEtaUploadSec(null)
+      if (p.phase !== 'uploading') {
+        r.lastUpload = null
+        r.speedUpload = null
+      }
+    }
+  }, [downloaderProgress])
 
   const addToQueue = async () => {
     const movie = queueMovie
@@ -550,6 +619,9 @@ function SearchUploadTab({ onUploadingChange }) {
                       <strong>Download Progress:</strong>
                       <span>Page</span>
                       <span>{downloaderProgress.download.current_page} / {downloaderProgress.download.total_pages}</span>
+                      {etaDownloadSec != null && (
+                        <span className="text-amber-300/90" title="Estimated from average page speed">{formatEtaSeconds(etaDownloadSec)} left</span>
+                      )}
                     </div>
                   </div>
                   <div className="h-1.5 w-full rounded-full bg-gray-700 overflow-hidden">
@@ -573,11 +645,14 @@ function SearchUploadTab({ onUploadingChange }) {
                           {formatBytesByMode(downloaderProgress.upload.bytes_sent, byteDisplayMode)} / {formatBytesByMode(downloaderProgress.upload.bytes_total, byteDisplayMode)}
                         </span>
                       )}
+                      {etaUploadSec != null && (
+                        <span className="text-amber-300/90" title="Estimated from average upload speed">{formatEtaSeconds(etaUploadSec)} left</span>
+                      )}
                     </div>
                   </div>
                   <div className="h-1.5 w-full rounded-full bg-gray-700 overflow-hidden">
                     <div
-                      className="h-full rounded-full bg-amber-500 transition-[width] duration-300"
+                      className="h-full rounded-full bg-amber-300 transition-[width] duration-300"
                       style={{
                         width: `${Math.min(100, downloaderProgress.upload.percent != null
                           ? Number(downloaderProgress.upload.percent)
@@ -589,37 +664,13 @@ function SearchUploadTab({ onUploadingChange }) {
                   </div>
                 </div>
               )}
-              {downloaderProgress.download && (downloaderProgress.download.bytes_done != null || downloaderProgress.download.error) && (
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs text-gray-400">
-                    <span>Download (torrent)</span>
-                    <span>
-                      {formatBytesByMode(downloaderProgress.download.bytes_done, byteDisplayMode)}
-                      {downloaderProgress.download.bytes_total != null ? ` / ${formatBytesByMode(downloaderProgress.download.bytes_total, byteDisplayMode)}` : ''}
-                    </span>
-                  </div>
-                  <div className="h-1.5 w-full rounded-full bg-gray-700 overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-cyan-500 transition-[width] duration-300"
-                      style={{
-                        width: (() => {
-                          const total = Number(downloaderProgress.download.bytes_total)
-                          const done = Number(downloaderProgress.download.bytes_done)
-                          if (!total || Number.isNaN(done)) return '0%'
-                          return `${Math.min(100, (done / total) * 100)}%`
-                        })(),
-                      }}
-                    />
-                  </div>
-                  {downloaderProgress.download.stall_seconds_remaining != null && downloaderProgress.phase === 'downloading' && (
-                    <p className="text-amber-300/90 text-xs">Considered stalled in {formatStallCountdown(downloaderProgress.download.stall_seconds_remaining)} if no progress</p>
-                  )}
-                  {downloaderProgress.download.error && (
-                    <p className="text-red-400 text-xs" title={downloaderProgress.download.error}>{downloaderProgress.download.error}</p>
-                  )}
-                </div>
+              {downloaderProgress.download?.error && (
+                <p className="text-red-400 text-xs" title={downloaderProgress.download.error}>{downloaderProgress.download.error}</p>
               )}
-              {downloaderProgress.phase === 'idle' && !downloaderProgress.download?.bytes_done && !downloaderProgress.upload?.bytes_sent && !downloaderProgress.error && (
+              {downloaderProgress.upload?.error && (
+                <p className="text-red-400 text-xs" title={downloaderProgress.upload.error}>{downloaderProgress.upload.error}</p>
+              )}
+              {downloaderProgress.phase === 'idle' && !downloaderProgress.error && (
                 <p className="text-gray-500 text-xs">No active job. Start a waiting job to see live progress.</p>
               )}
 
@@ -627,14 +678,6 @@ function SearchUploadTab({ onUploadingChange }) {
                 <div className="flex flex-wrap gap-x-3 gap-y-1 text-gray-400">
                   <span><strong className="text-gray-300">Phase:</strong> {downloaderProgress.phase ?? '—'}</span>
                   {downloaderProgress.jobId != null && <span><strong className="text-gray-300">JobId:</strong> <span className="font-mono truncate max-w-[120px] inline-block align-bottom" title={String(downloaderProgress.jobId)}>{String(downloaderProgress.jobId)}</span></span>}
-                  {downloaderProgress.download?.attempt != null && <span><strong className="text-gray-300">Attempt:</strong> {downloaderProgress.download.attempt}</span>}
-                  {downloaderProgress.download?.torrent_name != null && <span className="min-w-0" title={downloaderProgress.download.torrent_name}><strong className="text-gray-300">Torrent:</strong> <span className="truncate max-w-[180px] inline-block align-bottom">{downloaderProgress.download.torrent_name}</span></span>}
-                  {downloaderProgress.download?.seeders != null && <span><strong className="text-gray-300">Seeders:</strong> {downloaderProgress.download.seeders}</span>}
-                  {downloaderProgress.phase === 'downloading' && downloaderProgress.download?.stall_seconds_remaining != null && (
-                    <span className="text-amber-300/90" title="No new data for this long will be considered stalled">
-                      Stall in {formatStallCountdown(downloaderProgress.download.stall_seconds_remaining)}
-                    </span>
-                  )}
                 </div>
                 {downloaderProgress.updatedAt != null && (
                   <div className="text-gray-500 text-xs"><strong className="text-gray-300">UpdatedAt:</strong> {new Date(Number(downloaderProgress.updatedAt) * 1000).toISOString()}</div>
@@ -708,61 +751,37 @@ function SearchUploadTab({ onUploadingChange }) {
                         <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium border ${queueStatusBadgeClass(item.status)}`}>
                           {item.status}
                         </span>
-                        {item.status === 'uploading' && (item.uploadChunkIndex != null && item.uploadChunkTotal != null) && (
-                          <span className="text-gray-500 text-xs">
-                            Chunk {item.uploadChunkIndex}/{item.uploadChunkTotal}
-                            {item.uploadProgress != null ? ` · Writing ${item.uploadProgress}%` : ''}
-                          </span>
-                        )}
                       </div>
-                      {/* Downloader progress: only when this row is the job we have progress for (so bar updates with WS data) */}
+                      {/* Downloader progress: only when this row is the current job (sniffer: page progress + upload) */}
                       {(item.status === 'downloading' || item.status === 'uploading') && downloaderProgress && (String(downloaderProgress.jobId || '') === String(item.jobId || '') || String(downloaderProgress.jobId || '') === String(item._id || '')) && (
                         <div className="mt-2 space-y-1.5 text-xs">
-                          {downloaderProgress.download && (Number(downloaderProgress.download.bytes_done) > 0 || downloaderProgress.download.error) && (
+                          {(downloaderProgress.explanation || (downloaderProgress.download?.current_page != null && downloaderProgress.download?.total_pages != null) || downloaderProgress.download?.error) && (
                             <div>
                               {downloaderProgress.explanation && (
                                 <p className="text-cyan-200/90 text-xs truncate mb-1" title={downloaderProgress.explanation}>{downloaderProgress.explanation}</p>
                               )}
-                              <div className="flex justify-between text-gray-400 flex-wrap gap-y-1">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <span>Download (torrent)</span>
-                                  {downloaderProgress.download.attempt != null && (
-                                    <span className="text-gray-500">Attempt {downloaderProgress.download.attempt}</span>
-                                  )}
-                                  {downloaderProgress.download.torrent_name != null && (
-                                    <span className="text-gray-500 truncate max-w-[160px]" title={downloaderProgress.download.torrent_name}>{downloaderProgress.download.torrent_name}</span>
-                                  )}
-                                  {downloaderProgress.download.seeders != null && (
-                                    <span className="text-gray-500" title="Seeders (from search when torrent was chosen)">Seeders: {downloaderProgress.download.seeders}</span>
-                                  )}
-                                </div>
-                                <span>
-                                  {formatBytesByMode(downloaderProgress.download.bytes_done, byteDisplayMode)}
-                                  {downloaderProgress.download.bytes_total != null ? ` / ${formatBytesByMode(downloaderProgress.download.bytes_total, byteDisplayMode)}` : ''}
-                                </span>
-                              </div>
-                              <div className="h-1.5 w-full rounded-full bg-gray-700 overflow-hidden">
-                                <div
-                                  className="h-full rounded-full bg-cyan-500 transition-[width] duration-300"
-                                  style={{
-                                    width: (() => {
-                                      const total = Number(downloaderProgress.download.bytes_total)
-                                      const done = Number(downloaderProgress.download.bytes_done)
-                                      if (!total || Number.isNaN(done)) return '0%'
-                                      return `${Math.min(100, (done / total) * 100)}%`
-                                    })(),
-                                  }}
-                                />
-                              </div>
-                              {downloaderProgress.download.stall_seconds_remaining != null && downloaderProgress.phase === 'downloading' && (
-                                <p className="text-amber-300/90 text-xs">Stall in {formatStallCountdown(downloaderProgress.download.stall_seconds_remaining)}</p>
+                              {downloaderProgress.download?.total_pages != null && downloaderProgress.download?.current_page != null && (
+                                <>
+                                  <div className="flex justify-between text-gray-400">
+                                    <span>Page</span>
+                                    <span>{downloaderProgress.download.current_page} / {downloaderProgress.download.total_pages}</span>
+                                  </div>
+                                  <div className="h-1.5 w-full rounded-full bg-gray-700 overflow-hidden">
+                                    <div
+                                      className="h-full rounded-full bg-amber-300 transition-[width] duration-300"
+                                      style={{
+                                        width: `${Math.min(100, (Number(downloaderProgress.download.current_page) / Number(downloaderProgress.download.total_pages)) * 100)}%`,
+                                      }}
+                                    />
+                                  </div>
+                                </>
                               )}
-                              {downloaderProgress.download.error && (
+                              {downloaderProgress.download?.error && (
                                 <p className="text-red-400 truncate" title={downloaderProgress.download.error}>{downloaderProgress.download.error}</p>
                               )}
                             </div>
                           )}
-                          {downloaderProgress.upload && (Number(downloaderProgress.upload.bytes_sent) > 0) && (
+                          {downloaderProgress.upload && (Number(downloaderProgress.upload.bytes_sent) > 0 || downloaderProgress.upload.error) && (
                             <div>
                               <div className="flex justify-between text-gray-400">
                                 <span>Upload to staging</span>
@@ -788,21 +807,6 @@ function SearchUploadTab({ onUploadingChange }) {
                       )}
                       {item.errorMessage && (
                         <p className="text-red-400 text-xs mt-1 truncate" title={item.errorMessage}>{item.errorMessage}</p>
-                      )}
-                      {item.status === 'uploading' && (item.uploadChunkTotal != null && item.uploadChunkTotal > 0) && !downloaderProgress?.upload?.bytes_sent && (
-                        <div className="mt-1.5 space-y-0.5">
-                          <div className="h-1.5 w-full rounded-full bg-gray-700 overflow-hidden">
-                            <div
-                              className="h-full rounded-full bg-amber-500 transition-[width] duration-300"
-                              style={{
-                                width: `${Math.min(
-                                  100,
-                                  ((item.uploadChunkIndex ?? 0) / item.uploadChunkTotal) * 80 + ((item.uploadProgress ?? 0) / 100) * 20
-                                )}%`,
-                              }}
-                            />
-                          </div>
-                        </div>
                       )}
                     </div>
                     <button
