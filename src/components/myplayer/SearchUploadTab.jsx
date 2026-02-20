@@ -500,11 +500,10 @@ function SearchUploadTab({ onUploadingChange }) {
             key={tab.id}
             type="button"
             onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-              activeTab === tab.id
+            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${activeTab === tab.id
                 ? 'border-amber-500 text-amber-400'
                 : 'border-transparent text-gray-400 hover:text-gray-300'
-            }`}
+              }`}
           >
             {tab.label}
           </button>
@@ -519,14 +518,14 @@ function SearchUploadTab({ onUploadingChange }) {
             renderActions={
               queueMovie
                 ? () => (
-                    <button
-                      type="button"
-                      onClick={addToQueue}
-                      className="px-4 py-2 rounded-lg bg-amber-500 text-gray-900 font-medium hover:bg-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400"
-                    >
-                      Add to queue
-                    </button>
-                  )
+                  <button
+                    type="button"
+                    onClick={addToQueue}
+                    className="px-4 py-2 rounded-lg bg-amber-500 text-gray-900 font-medium hover:bg-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  >
+                    Add to queue
+                  </button>
+                )
                 : undefined
             }
           />
@@ -540,23 +539,56 @@ function SearchUploadTab({ onUploadingChange }) {
                   {downloaderProgress.error ? `Backend: ${downloaderProgress.error}` : downloaderUpdatedAgo ? `Streamed ${downloaderUpdatedAgo}` : 'Streamed'}
                 </span>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                <div className="flex flex-wrap gap-x-3 gap-y-1 text-gray-400">
-                  <span><strong className="text-gray-300">Phase:</strong> {downloaderProgress.phase ?? '—'}</span>
-                  {downloaderProgress.jobId != null && <span><strong className="text-gray-300">JobId:</strong> <span className="font-mono truncate max-w-[120px] inline-block align-bottom" title={String(downloaderProgress.jobId)}>{String(downloaderProgress.jobId)}</span></span>}
-                  {downloaderProgress.download?.attempt != null && <span><strong className="text-gray-300">Attempt:</strong> {downloaderProgress.download.attempt}</span>}
-                  {downloaderProgress.download?.torrent_name != null && <span className="min-w-0" title={downloaderProgress.download.torrent_name}><strong className="text-gray-300">Torrent:</strong> <span className="truncate max-w-[180px] inline-block align-bottom">{downloaderProgress.download.torrent_name}</span></span>}
-                  {downloaderProgress.download?.seeders != null && <span><strong className="text-gray-300">Seeders:</strong> {downloaderProgress.download.seeders}</span>}
-                  {downloaderProgress.phase === 'downloading' && downloaderProgress.download?.stall_seconds_remaining != null && (
-                    <span className="text-amber-300/90" title="No new data for this long will be considered stalled">
-                      Stall in {formatStallCountdown(downloaderProgress.download.stall_seconds_remaining)}
-                    </span>
-                  )}
+              {downloaderProgress.explanation && (
+                <p className="text-gray-500/90 text-xs break-all">{downloaderProgress.explanation}</p>
+              )}
+
+              {(downloaderProgress.phase === 'downloading' || downloaderProgress.phase === 'uploading') && downloaderProgress.download?.total_pages != null && downloaderProgress.download?.current_page != null && (
+                <div className="space-y-1">
+                  <div className="flex justify-between text-xs text-gray-400">
+                    <div className="flex items-center gap-1">
+                      <strong>Download Progress:</strong>
+                      <span>Page</span>
+                      <span>{downloaderProgress.download.current_page} / {downloaderProgress.download.total_pages}</span>
+                    </div>
+                  </div>
+                  <div className="h-1.5 w-full rounded-full bg-gray-700 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-amber-300 transition-[width] duration-300"
+                      style={{
+                        width: `${Math.min(100, (Number(downloaderProgress.download.current_page) / Number(downloaderProgress.download.total_pages)) * 100)}%`,
+                      }}
+                    />
+                  </div>
                 </div>
-                {downloaderProgress.updatedAt != null && (
-                  <div className="text-gray-500 text-xs"><strong className="text-gray-300">UpdatedAt:</strong> {new Date(Number(downloaderProgress.updatedAt) * 1000).toISOString()}</div>
-                )}
-              </div>
+              )}
+              {downloaderProgress.phase === 'uploading' && downloaderProgress.upload?.bytes_total != null && (
+                <div className="space-y-1">
+                  <div className="flex justify-between text-xs text-gray-400">
+                    <div className="flex items-center gap-1">
+                      <strong>Upload Progress:</strong>
+                      <span>{downloaderProgress.upload.percent != null ? `${downloaderProgress.upload.percent}%` : ''}</span>
+                      {downloaderProgress.upload.bytes_sent != null && (
+                        <span>
+                          {formatBytesByMode(downloaderProgress.upload.bytes_sent, byteDisplayMode)} / {formatBytesByMode(downloaderProgress.upload.bytes_total, byteDisplayMode)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="h-1.5 w-full rounded-full bg-gray-700 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-amber-500 transition-[width] duration-300"
+                      style={{
+                        width: `${Math.min(100, downloaderProgress.upload.percent != null
+                          ? Number(downloaderProgress.upload.percent)
+                          : downloaderProgress.upload.bytes_total
+                            ? (Number(downloaderProgress.upload.bytes_sent || 0) / Number(downloaderProgress.upload.bytes_total)) * 100
+                            : 0)}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
               {downloaderProgress.download && (downloaderProgress.download.bytes_done != null || downloaderProgress.download.error) && (
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs text-gray-400">
@@ -587,31 +619,27 @@ function SearchUploadTab({ onUploadingChange }) {
                   )}
                 </div>
               )}
-              {downloaderProgress.upload && (downloaderProgress.upload.bytes_sent != null || downloaderProgress.upload.error) && (
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs text-gray-400">
-                    <span>Upload to staging</span>
-                    <span>
-                      {downloaderProgress.upload.percent != null ? `${downloaderProgress.upload.percent}%` : ''}
-                      {downloaderProgress.upload.bytes_sent != null && downloaderProgress.upload.bytes_total != null
-                        ? ` · ${formatBytesByMode(downloaderProgress.upload.bytes_sent, byteDisplayMode)} / ${formatBytesByMode(downloaderProgress.upload.bytes_total, byteDisplayMode)}`
-                        : ''}
-                    </span>
-                  </div>
-                  <div className="h-1.5 w-full rounded-full bg-gray-700 overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-amber-500 transition-[width] duration-300"
-                      style={{ width: `${Number(downloaderProgress.upload.percent) || 0}%` }}
-                    />
-                  </div>
-                  {downloaderProgress.upload.error && (
-                    <p className="text-red-400 text-xs" title={downloaderProgress.upload.error}>{downloaderProgress.upload.error}</p>
-                  )}
-                </div>
-              )}
               {downloaderProgress.phase === 'idle' && !downloaderProgress.download?.bytes_done && !downloaderProgress.upload?.bytes_sent && !downloaderProgress.error && (
                 <p className="text-gray-500 text-xs">No active job. Start a waiting job to see live progress.</p>
               )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                <div className="flex flex-wrap gap-x-3 gap-y-1 text-gray-400">
+                  <span><strong className="text-gray-300">Phase:</strong> {downloaderProgress.phase ?? '—'}</span>
+                  {downloaderProgress.jobId != null && <span><strong className="text-gray-300">JobId:</strong> <span className="font-mono truncate max-w-[120px] inline-block align-bottom" title={String(downloaderProgress.jobId)}>{String(downloaderProgress.jobId)}</span></span>}
+                  {downloaderProgress.download?.attempt != null && <span><strong className="text-gray-300">Attempt:</strong> {downloaderProgress.download.attempt}</span>}
+                  {downloaderProgress.download?.torrent_name != null && <span className="min-w-0" title={downloaderProgress.download.torrent_name}><strong className="text-gray-300">Torrent:</strong> <span className="truncate max-w-[180px] inline-block align-bottom">{downloaderProgress.download.torrent_name}</span></span>}
+                  {downloaderProgress.download?.seeders != null && <span><strong className="text-gray-300">Seeders:</strong> {downloaderProgress.download.seeders}</span>}
+                  {downloaderProgress.phase === 'downloading' && downloaderProgress.download?.stall_seconds_remaining != null && (
+                    <span className="text-amber-300/90" title="No new data for this long will be considered stalled">
+                      Stall in {formatStallCountdown(downloaderProgress.download.stall_seconds_remaining)}
+                    </span>
+                  )}
+                </div>
+                {downloaderProgress.updatedAt != null && (
+                  <div className="text-gray-500 text-xs"><strong className="text-gray-300">UpdatedAt:</strong> {new Date(Number(downloaderProgress.updatedAt) * 1000).toISOString()}</div>
+                )}
+              </div>
             </div>
           )}
 
@@ -678,13 +706,8 @@ function SearchUploadTab({ onUploadingChange }) {
                       <p className="text-gray-200 text-sm font-medium truncate">{item.title}</p>
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1">
                         <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium border ${queueStatusBadgeClass(item.status)}`}>
-                          DB : {item.status}
+                          {item.status}
                         </span>
-                        {downloaderProgress && downloaderProgress.phase && (String(downloaderProgress.jobId || '') === String(item.jobId || '') || String(downloaderProgress.jobId || '') === String(item._id || '')) && (
-                          <span className="inline-block px-2 py-0.5 rounded text-xs font-medium border bg-amber-500/20 text-amber-400 border-amber-500/40">
-                            DL : {downloaderProgress.phase}
-                          </span>
-                        )}
                         {item.status === 'uploading' && (item.uploadChunkIndex != null && item.uploadChunkTotal != null) && (
                           <span className="text-gray-500 text-xs">
                             Chunk {item.uploadChunkIndex}/{item.uploadChunkTotal}
@@ -697,6 +720,9 @@ function SearchUploadTab({ onUploadingChange }) {
                         <div className="mt-2 space-y-1.5 text-xs">
                           {downloaderProgress.download && (Number(downloaderProgress.download.bytes_done) > 0 || downloaderProgress.download.error) && (
                             <div>
+                              {downloaderProgress.explanation && (
+                                <p className="text-cyan-200/90 text-xs truncate mb-1" title={downloaderProgress.explanation}>{downloaderProgress.explanation}</p>
+                              )}
                               <div className="flex justify-between text-gray-400 flex-wrap gap-y-1">
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <span>Download (torrent)</span>
@@ -801,117 +827,116 @@ function SearchUploadTab({ onUploadingChange }) {
 
       {activeTab === 'manual' && (
         <>
-      {uploading && (
-        <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-4 space-y-3">
-          <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 px-3 py-2 text-sm text-amber-200/90">
-            <p className="font-medium">
-              {uploadStatus === 'writing'
-                ? `Writing to database in progress for “${uploadFileName || 'video'}” - please wait.`
-                : uploadStatus === 'uploading'
-                  ? `Upload in progress for “${uploadFileName || 'video'}” — please wait.`
-                  : `Upload in progress for “${uploadFileName || 'video'}”.`}
-            </p>
-            <p className="text-xs text-amber-200/70 mt-1">
-              Status from server: <strong>{uploadStatus === 'writing' ? 'Writing to database' : uploadStatus === 'uploading' ? 'Sending chunks' : uploadStatus || '…'}</strong>
-            </p>
-          </div>
-          <div className="space-y-1">
-            <div className="flex justify-between text-xs text-gray-500">
-              <span>{uploadChunkInfo ? `Sending chunk ${uploadChunkInfo.current} of ${uploadChunkInfo.total}…` : 'Sending file…'}</span>
-              <span>{uploadProgress != null ? `${uploadProgress}%` : '…'}</span>
-            </div>
-            <div className="h-2 w-full rounded-full bg-gray-700 overflow-hidden">
-              <div className="h-full rounded-full bg-amber-500/80 transition-[width] duration-300" style={{ width: `${uploadProgress ?? 0}%` }} />
-            </div>
-          </div>
-          <div className="space-y-1">
-            <div className="flex justify-between text-xs text-gray-500">
-              <span>Writing to database…</span>
-              <span>{dbProgress != null ? `${dbProgress}%` : '…'}</span>
-            </div>
-            <div className="h-2 w-full rounded-full bg-gray-700 overflow-hidden">
-              <div className="h-full rounded-full bg-amber-500 transition-[width] duration-300" style={{ width: `${dbProgress ?? 0}%` }} />
-            </div>
-          </div>
-        </div>
-      )}
-      <SearchMovieForm
-        description="Search for a movie by TMDB or IMDB ID. Once found, the result is stored here so upload logic can use it (TMDB id, title, etc.)."
-        onMovieSelect={setSelectedMovieForUpload}
-        renderActions={
-          selectedMovieForUpload
-            ? () => (
-                <span className="text-gray-500 text-sm">
-                  Selected for upload: TMDB id {selectedMovieForUpload.id}
-                  {selectedMovieForUpload.title && ` · ${selectedMovieForUpload.title}`}
-                </span>
-              )
-            : undefined
-        }
-      />
-      {selectedMovieForUpload && (
-        <div className="rounded-xl border border-gray-700 bg-gray-800/50 p-4 space-y-4">
-          <h3 className="text-sm font-medium text-gray-300">Upload video</h3>
-
-          <div className="text-gray-500 text-sm space-y-1 min-w-0">
-            <p>
-              TMDB id: <strong className="text-gray-300">{selectedMovieForUpload.id}</strong>
-              {selectedMovieForUpload.title && (
-                <>
-                  {' · '}
-                  Title: <strong className="text-gray-300">{selectedMovieForUpload.title}</strong>
-                </>
-              )}
-            </p>
-            {(selectedMovieForUpload.poster_path || selectedMovieForUpload.poster_url) && (
-              <p className="truncate">
-                Poster path: <strong className="text-gray-300">{selectedMovieForUpload.poster_path || selectedMovieForUpload.poster_url}</strong>
-              </p>
-            )}
-          </div>
-
-
-          <div
-            role="button"
-            tabIndex={0}
-            onDrop={onDrop}
-            onDragOver={onDragOver}
-            onDragLeave={onDragLeave}
-            onClick={() => inputRef.current?.click()}
-            onKeyDown={(e) => e.key === 'Enter' && inputRef.current?.click()}
-            className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
-              dragOver ? 'border-amber-500 bg-amber-500/10' : 'border-gray-600 hover:border-gray-500 bg-gray-800/50'
-            }`}
-          >
-            <input
-              ref={inputRef}
-              type="file"
-              accept={ACCEPT}
-              className="sr-only"
-              onChange={(e) => addFile(e.target.files ? Array.from(e.target.files) : null)}
-              aria-label="Choose video file"
-            />
-            <p className="text-gray-300 text-sm font-medium">
-              {file ? file.name : 'Drop video here or click to browse'}
-            </p>
-            {file && <p className="text-gray-500 text-xs mt-1">{(file.size / (1024 * 1024)).toFixed(2)} MB</p>}
-            <p className="text-gray-500 text-xs mt-1">MP4, WebM, MKV · max 5GB</p>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleUpload}
-            disabled={!file || uploading}
-            className="w-full sm:w-auto px-4 py-2 rounded-lg bg-amber-500 text-gray-900 font-medium hover:bg-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {uploading ? 'Uploading…' : 'Upload to staging'}
-          </button>
-
           {uploading && (
-            <p className="text-sm text-gray-500">Progress is shown at the top of this page.</p>
+            <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-4 space-y-3">
+              <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 px-3 py-2 text-sm text-amber-200/90">
+                <p className="font-medium">
+                  {uploadStatus === 'writing'
+                    ? `Writing to database in progress for “${uploadFileName || 'video'}” - please wait.`
+                    : uploadStatus === 'uploading'
+                      ? `Upload in progress for “${uploadFileName || 'video'}” — please wait.`
+                      : `Upload in progress for “${uploadFileName || 'video'}”.`}
+                </p>
+                <p className="text-xs text-amber-200/70 mt-1">
+                  Status from server: <strong>{uploadStatus === 'writing' ? 'Writing to database' : uploadStatus === 'uploading' ? 'Sending chunks' : uploadStatus || '…'}</strong>
+                </p>
+              </div>
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs text-gray-500">
+                  <span>{uploadChunkInfo ? `Sending chunk ${uploadChunkInfo.current} of ${uploadChunkInfo.total}…` : 'Sending file…'}</span>
+                  <span>{uploadProgress != null ? `${uploadProgress}%` : '…'}</span>
+                </div>
+                <div className="h-2 w-full rounded-full bg-gray-700 overflow-hidden">
+                  <div className="h-full rounded-full bg-amber-500/80 transition-[width] duration-300" style={{ width: `${uploadProgress ?? 0}%` }} />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs text-gray-500">
+                  <span>Writing to database…</span>
+                  <span>{dbProgress != null ? `${dbProgress}%` : '…'}</span>
+                </div>
+                <div className="h-2 w-full rounded-full bg-gray-700 overflow-hidden">
+                  <div className="h-full rounded-full bg-amber-500 transition-[width] duration-300" style={{ width: `${dbProgress ?? 0}%` }} />
+                </div>
+              </div>
+            </div>
           )}
-        </div>
-      )}
+          <SearchMovieForm
+            description="Search for a movie by TMDB or IMDB ID. Once found, the result is stored here so upload logic can use it (TMDB id, title, etc.)."
+            onMovieSelect={setSelectedMovieForUpload}
+            renderActions={
+              selectedMovieForUpload
+                ? () => (
+                  <span className="text-gray-500 text-sm">
+                    Selected for upload: TMDB id {selectedMovieForUpload.id}
+                    {selectedMovieForUpload.title && ` · ${selectedMovieForUpload.title}`}
+                  </span>
+                )
+                : undefined
+            }
+          />
+          {selectedMovieForUpload && (
+            <div className="rounded-xl border border-gray-700 bg-gray-800/50 p-4 space-y-4">
+              <h3 className="text-sm font-medium text-gray-300">Upload video</h3>
+
+              <div className="text-gray-500 text-sm space-y-1 min-w-0">
+                <p>
+                  TMDB id: <strong className="text-gray-300">{selectedMovieForUpload.id}</strong>
+                  {selectedMovieForUpload.title && (
+                    <>
+                      {' · '}
+                      Title: <strong className="text-gray-300">{selectedMovieForUpload.title}</strong>
+                    </>
+                  )}
+                </p>
+                {(selectedMovieForUpload.poster_path || selectedMovieForUpload.poster_url) && (
+                  <p className="truncate">
+                    Poster path: <strong className="text-gray-300">{selectedMovieForUpload.poster_path || selectedMovieForUpload.poster_url}</strong>
+                  </p>
+                )}
+              </div>
+
+
+              <div
+                role="button"
+                tabIndex={0}
+                onDrop={onDrop}
+                onDragOver={onDragOver}
+                onDragLeave={onDragLeave}
+                onClick={() => inputRef.current?.click()}
+                onKeyDown={(e) => e.key === 'Enter' && inputRef.current?.click()}
+                className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${dragOver ? 'border-amber-500 bg-amber-500/10' : 'border-gray-600 hover:border-gray-500 bg-gray-800/50'
+                  }`}
+              >
+                <input
+                  ref={inputRef}
+                  type="file"
+                  accept={ACCEPT}
+                  className="sr-only"
+                  onChange={(e) => addFile(e.target.files ? Array.from(e.target.files) : null)}
+                  aria-label="Choose video file"
+                />
+                <p className="text-gray-300 text-sm font-medium">
+                  {file ? file.name : 'Drop video here or click to browse'}
+                </p>
+                {file && <p className="text-gray-500 text-xs mt-1">{(file.size / (1024 * 1024)).toFixed(2)} MB</p>}
+                <p className="text-gray-500 text-xs mt-1">MP4, WebM, MKV · max 5GB</p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleUpload}
+                disabled={!file || uploading}
+                className="w-full sm:w-auto px-4 py-2 rounded-lg bg-amber-500 text-gray-900 font-medium hover:bg-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {uploading ? 'Uploading…' : 'Upload to staging'}
+              </button>
+
+              {uploading && (
+                <p className="text-sm text-gray-500">Progress is shown at the top of this page.</p>
+              )}
+            </div>
+          )}
         </>
       )}
     </div>
