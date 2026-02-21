@@ -10,6 +10,7 @@ import Seasons from '../components/Seasons'
 import Country from '../components/Country'
 import SaveModal from '../components/SaveModal'
 import Modal from '../components/Modal'
+import { Highlighter } from "@/components/ui/highlighter"
 
 /** Format YYYY-MM-DD to "Mon DD, YYYY" (e.g. Feb 15, 2026) */
 function formatAirDate(airDate) {
@@ -689,18 +690,22 @@ export default function WatchNowPage() {
       <Modal
         open={adFreeHelpModalOpen}
         onClose={() => setAdFreeHelpModalOpen(false)}
-        title="How to help get ad-free movies"
+        title={
+          <Highlighter color="#FE9A00" action="underline" >
+            <p>Add AddFree Movie</p>
+          </Highlighter> 
+        }
       >
-        <div className="text-sm text-gray-300 space-y-3">
+        <div className="text-sm text-gray-300 space-y-4">
           <p>
-            Ad-free movies are hosted when someone adds them to the download queue. The system downloads the video and uploads it, making it available for everyone without ads.
+            Click <strong className="text-amber-400">&quot;Request ad-free&quot;</strong> on the home page, search by IMDB/TMDB ID, add it. <strong>Please Don&apos;t spam.</strong>
           </p>
-          <p>
-            <strong className="text-gray-100">You can help!</strong> If you have admin access, you can queue this movie (or any other) in the admin panel under the download queue. Add a movie by TMDB or IMDB ID, and it will be processed in the background.
-          </p>
-          <p>
-            Once downloaded and uploaded, the movie will appear as &quot;Ad-free&quot; here and for all viewers. Thank you for contributing to the ad-free library!
-          </p>
+          <div className="flex flex-col items-center gap-1">
+            <p className="text-gray-400 text-xs">Click image to zoom</p>
+            <a href="/request-movie.png" target="_blank" rel="noopener noreferrer" className="block cursor-zoom-in">
+              <img src="/request-movie.png" alt="Request ad-free button on home page" className="rounded-lg border border-gray-600 max-w-full hover:opacity-90 transition-opacity" />
+            </a>
+          </div>
         </div>
       </Modal>
     </div>
