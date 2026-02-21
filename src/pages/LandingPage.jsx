@@ -218,7 +218,7 @@ export default function LandingPage() {
           <img
             src={logoFull}
             alt={appName}
-            className="max-w-[25rem] w-fit mx-auto mb-6"
+            className="max-w-[22rem] w-fit mx-auto mb-6"
           />
           <p className="text-lg text-gray-300">
                         {tagLine}
@@ -247,7 +247,7 @@ export default function LandingPage() {
 
                     <p className="mt-10 text-sm text-gray-400 max-w-160 mx-auto">
                         <Highlighter color="red">
-                          <strong className="text-white">Disclaimer:</strong>
+                          <strong className="text-white">Disclaimer:</strong>{' '}
                         </Highlighter>
 
                         Any{' '}
