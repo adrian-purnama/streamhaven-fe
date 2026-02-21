@@ -137,6 +137,7 @@ export default function AddAdFreeMovieModal({ open, onClose }) {
             <p className="text-gray-400 text-sm mb-4">
               Search for a movie by IMDB or TMDB ID, then add it to the download queue. Once processed, it will be available ad-free for everyone.
             </p>
+            <p>{recaptchaSiteKey}</p>
             {needsRecaptcha && (
                     <div className="mb-4 [&_.grecaptcha-badge]:bottom-14!">
                       <ReCAPTCHA
