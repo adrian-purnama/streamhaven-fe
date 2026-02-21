@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import toast from 'react-hot-toast'
+import ReCAPTCHA from 'react-google-recaptcha'
 import Modal from './Modal'
 import SearchMovieForm from './forms/SearchMovieForm'
 import SearchableDropdown from './SearchableDropdown'
@@ -40,6 +41,10 @@ export default function AddAdFreeMovieModal({ open, onClose }) {
   const [queueLoading, setQueueLoading] = useState(false)
   const [queueSkip, setQueueSkip] = useState(0)
   const [statusFilter, setStatusFilter] = useState('')
+  const [recaptchaSiteKey, setRecaptchaSiteKey] = useState('')
+  const recaptchaRef = useRef(null)
+
+  const needsRecaptcha = Boolean(recaptchaSiteKey)
 
   const fetchQueue = useCallback(async () => {
     setQueueLoading(true)
@@ -67,10 +72,26 @@ export default function AddAdFreeMovieModal({ open, onClose }) {
     if (open && activeTab === 'list') fetchQueue()
   }, [open, activeTab, fetchQueue])
 
+  useEffect(() => {
+    if (open) {
+      apiHelper.get('/auth/recaptcha-site-key')
+        .then(({ data }) => setRecaptchaSiteKey(data?.data?.siteKey || ''))
+        .catch(() => setRecaptchaSiteKey(''))
+    }
+  }, [open])
+
+  useEffect(() => {
+    console.log(recaptchaSiteKey)
+  }, [recaptchaSiteKey])
+
   const handleAddToQueue = async () => {
     const movie = selectedMovie
     if (!movie?.title && !movie?.id) {
       toast.error('Search and select a movie first')
+      return
+    }
+    if (needsRecaptcha && !recaptchaRef.current?.getValue?.()) {
+      toast.error('Please complete the captcha verification')
       return
     }
     setAdding(true)
@@ -85,9 +106,13 @@ export default function AddAdFreeMovieModal({ open, onClose }) {
         setAdding(false)
         return
       }
+      if (needsRecaptcha) {
+        payload.recaptchaToken = recaptchaRef.current.getValue()
+      }
       await apiHelper.post('/api/feedback/ad-free-request', payload)
       toast.success('Added to download queue. It will be processed and become ad-free for everyone.')
       setSelectedMovie(null)
+      recaptchaRef.current?.reset?.()
       onClose()
     } catch (err) {
       toast.error(err.response?.data?.message || err.message || 'Failed to add to queue')
@@ -108,11 +133,10 @@ export default function AddAdFreeMovieModal({ open, onClose }) {
                 e.stopPropagation()
                 setActiveTab(tab.id)
               }}
-              className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-                activeTab === tab.id
+              className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${activeTab === tab.id
                   ? 'border-amber-500 text-amber-400'
                   : 'border-transparent text-gray-400 hover:text-gray-300'
-              }`}
+                }`}
             >
               {tab.label}
             </button>
@@ -124,21 +148,35 @@ export default function AddAdFreeMovieModal({ open, onClose }) {
             <p className="text-gray-400 text-sm mb-4">
               Search for a movie by IMDB or TMDB ID, then add it to the download queue. Once processed, it will be available ad-free for everyone.
             </p>
+            {needsRecaptcha && (
+                    <div className="mb-4 [&_.grecaptcha-badge]:bottom-14!">
+                      <ReCAPTCHA
+                        ref={recaptchaRef}
+                        sitekey={recaptchaSiteKey}
+                        theme="dark"
+                        size="normal"
+                      />
+                    </div>
+                  )}
+
             <SearchMovieForm
               placeholder="IMDB (tt0137523) or TMDB (550)"
               description={null}
               onMovieSelect={setSelectedMovie}
               renderActions={() => (
-                <button
-                  type="button"
-                  disabled={adding}
-                  onClick={handleAddToQueue}
-                  className="px-4 py-2 rounded-lg bg-amber-500 text-gray-900 font-medium hover:bg-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {adding ? 'Adding…' : 'Add to queue'}
-                </button>
+                <>
+                  <button
+                    type="button"
+                    disabled={adding}
+                    onClick={handleAddToQueue}
+                    className="px-4 py-2 rounded-lg bg-amber-500 text-gray-900 font-medium hover:bg-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {adding ? 'Adding…' : 'Add to queue'}
+                  </button>
+                </>
               )}
             />
+
           </div>
         )}
 

@@ -26,7 +26,6 @@ function SystemForm() {
       if (sys) {
         setAppName(sys.appName ?? 'FC')
         setOpenRegistration(sys.openRegistration ?? false)
-        setOpenAdFreeRequest(sys.openAdFreeRequest ?? false)
         setLogoUrl(sys.logoUrl ?? '')
         setLogoFullUrl(sys.logoFullUrl ?? '')
         setTagLine(sys.tagLine ?? '')
@@ -47,7 +46,7 @@ function SystemForm() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     try {
-      await apiHelper.put('/api/system', { appName, openRegistration, openAdFreeRequest, logoUrl, logoFullUrl, tagLine })
+      await apiHelper.put('/api/system', { appName, openRegistration, logoUrl, logoFullUrl, tagLine })
       toast.success('System updated')
       fetchSystem()
     } catch (err) {
@@ -60,8 +59,8 @@ function SystemForm() {
     if (system) {
       setAppName(system.appName ?? 'FC')
       setOpenRegistration(system.openRegistration ?? false)
-      setOpenAdFreeRequest(system.openAdFreeRequest ?? false)
       setLogoUrl(system.logoUrl ?? '')
+      setOpenAdFreeRequest(system.openAdFreeRequest ?? false)
       setLogoFullUrl(system.logoFullUrl ?? '')
       setTagLine(system.tagLine ?? '')
     }
@@ -233,6 +232,7 @@ function SystemForm() {
           Open registration (allow new users to register)
         </label>
       </div>
+      <div className="flex gap-2 pt-2">
       <div className="flex items-center gap-2">
         <input
           id="system-open-ad-free-request"
@@ -245,7 +245,6 @@ function SystemForm() {
           Open ad-free request (show &quot;Add ad-free movie&quot; button to users)
         </label>
       </div>
-      <div className="flex gap-2 pt-2">
         <button
           type="submit"
           className="px-4 py-2 rounded bg-amber-500 text-gray-900 hover:bg-amber-400 font-medium focus:outline-none focus:ring-2 focus:ring-amber-400"
