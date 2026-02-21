@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+
+const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY || ''
 import toast from 'react-hot-toast'
 import ReCAPTCHA from 'react-google-recaptcha'
 import Modal from './Modal'
@@ -41,7 +43,6 @@ export default function AddAdFreeMovieModal({ open, onClose }) {
   const [queueLoading, setQueueLoading] = useState(false)
   const [queueSkip, setQueueSkip] = useState(0)
   const [statusFilter, setStatusFilter] = useState('')
-  const [recaptchaSiteKey, setRecaptchaSiteKey] = useState('')
   const recaptchaRef = useRef(null)
 
   const needsRecaptcha = Boolean(recaptchaSiteKey)
@@ -71,18 +72,6 @@ export default function AddAdFreeMovieModal({ open, onClose }) {
   useEffect(() => {
     if (open && activeTab === 'list') fetchQueue()
   }, [open, activeTab, fetchQueue])
-
-  useEffect(() => {
-    if (open) {
-      apiHelper.get('/auth/recaptcha-site-key')
-        .then(({ data }) => setRecaptchaSiteKey(data?.data?.siteKey || ''))
-        .catch(() => setRecaptchaSiteKey(''))
-    }
-  }, [open])
-
-  useEffect(() => {
-    console.log(recaptchaSiteKey)
-  }, [recaptchaSiteKey])
 
   const handleAddToQueue = async () => {
     const movie = selectedMovie

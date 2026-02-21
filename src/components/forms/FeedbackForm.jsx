@@ -1,25 +1,18 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef } from 'react'
 import toast from 'react-hot-toast'
 import ReCAPTCHA from 'react-google-recaptcha'
 import apiHelper from '../../helper/apiHelper'
 import { useAuth } from '../../context/AuthContext' // for display only; backend sets userId from token when logged in
 
-export default function FeedbackForm({ onSubmit, onCancel, feedbackType = 'feedback', open }) {
+const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY || ''
+
+export default function FeedbackForm({ onSubmit, onCancel, feedbackType = 'feedback' }) {
   const { userId } = useAuth()
   const [feedback, setFeedback] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [recaptchaSiteKey, setRecaptchaSiteKey] = useState('')
   const recaptchaRef = useRef(null)
 
   const needsRecaptcha = Boolean(recaptchaSiteKey)
-
-  useEffect(() => {
-    if (open !== false) {
-      apiHelper.get('/auth/recaptcha-site-key')
-        .then(({ data }) => setRecaptchaSiteKey(data?.data?.siteKey || ''))
-        .catch(() => setRecaptchaSiteKey(''))
-    }
-  }, [open])
 
   const handleSubmit = async (e) => {
     e.preventDefault()

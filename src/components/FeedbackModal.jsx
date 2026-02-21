@@ -22,7 +22,6 @@ export default function FeedbackModal({ open, onClose }) {
         key={key}
         onSubmit={handleSuccess}
         onCancel={handleCancel}
-        open={open}
       />
     </Modal>
   )
