@@ -137,7 +137,6 @@ export default function AddAdFreeMovieModal({ open, onClose }) {
             <p className="text-gray-400 text-sm mb-4">
               Search for a movie by IMDB or TMDB ID, then add it to the download queue. Once processed, it will be available ad-free for everyone.
             </p>
-            {/* <p>{recaptchaSiteKey}</p> */}
             {needsRecaptcha && (
                     <div className="mb-4 [&_.grecaptcha-badge]:bottom-14!">
                       <ReCAPTCHA
@@ -191,7 +190,7 @@ export default function AddAdFreeMovieModal({ open, onClose }) {
               <p className="text-gray-500 text-sm">No items in queue. Add a movie in the Add tab.</p>
             ) : (
               <>
-                <ul className="space-y-3 max-h-80 overflow-y-auto">
+                <ul className="scrollbar-sleek space-y-3 max-h-80 overflow-y-auto">
                   {queueList.map((item) => (
                     <li
                       key={item._id}
@@ -210,9 +209,14 @@ export default function AddAdFreeMovieModal({ open, onClose }) {
                           <p className="text-gray-500 text-xs">{item.year}</p>
                         )}
                         {item.downloadStatus && (
-                          <span className={`inline-block mt-1 px-2 py-0.5 rounded text-xs font-medium border ${statusBadgeClass(item.downloadStatus)}`}>
-                            {item.downloadStatus}
-                          </span>
+                          <div className="mt-1">
+                            <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium border ${statusBadgeClass(item.downloadStatus)}`}>
+                              {item.downloadStatus}
+                            </span>
+                            {item.downloadStatus === 'processing' && (
+                              <p className="text-gray-500 text-xs mt-0.5">Download complete, preparing for upload</p>
+                            )}
+                          </div>
                         )}
                       </div>
                     </li>

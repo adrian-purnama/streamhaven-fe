@@ -265,7 +265,7 @@ function MappingTab() {
           <p className="text-gray-500 text-sm py-8">No matches for &quot;{searchQuery.trim()}&quot;.</p>
         ) : (
           <>
-            <ul className="space-y-4">
+            <ul className="scrollbar-sleek space-y-4 max-h-[420px] overflow-y-auto pr-1">
               {filteredList.map((item) => (
                 <li
                   key={item._id}
