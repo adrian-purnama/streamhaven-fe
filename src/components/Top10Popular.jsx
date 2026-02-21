@@ -209,7 +209,7 @@ export default function Top10Popular({ movies = [], loading = false, error = nul
                       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFeaturedIndex(index) } }}
                       className={`relative cursor-pointer ${index === 9 ? 'mx-25' : 'mx-15'} ${featuredIndex === index ? 'ring-2 ring-amber-500 ring-offset-2 ring-offset-gray-950 rounded-xl' : ''}`}
                     >
-                      <h1 className={`${index === 9 ? ' left-[-10rem]' : ' left-[-7rem]'} absolute top-[-2rem] z-30 font-bold text-[15rem] tracking-[-2.5rem] opacity-50 select-none`}>{index + 1}</h1>
+                      <h1 className={`${index === 9 ? ' left-[-10rem]' : ' left-[-7rem]'} absolute top-[-2rem] z-30 font-bold text-[15rem] tracking-[-1rem] opacity-50 select-none font-carre`}>{index + 1}</h1>
                       <Poster movie={m} size="md" mediaType="movie" className="shrink-0 z-31" />
                     </div>
                   ))}

@@ -153,7 +153,7 @@ const SearchableDropdown = ({
                 onClick={(e) => e.stopPropagation()}
               />
             </div>
-            <ul className="max-h-48 overflow-y-auto py-1">
+            <ul className="scrollbar-sleek max-h-48 overflow-y-auto py-1">
               {loading ? (
                 <li className="px-3 py-2 text-sm text-gray-400">Loading…</li>
               ) : filteredOptions.length === 0 ? (

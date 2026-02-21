@@ -747,6 +747,12 @@ function SearchUploadTab({ onUploadingChange }) {
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-gray-200 text-sm font-medium truncate">{item.title}</p>
+                      {(item.requesterType || item.requesterEmail) && (
+                        <p className="text-gray-500 text-xs mt-0.5">
+                          {item.requesterType}
+                          {item.requesterEmail && ` · ${item.requesterEmail}`}
+                        </p>
+                      )}
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1">
                         <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium border ${queueStatusBadgeClass(item.status)}`}>
                           {item.status}

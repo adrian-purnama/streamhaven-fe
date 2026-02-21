@@ -27,6 +27,7 @@ export default function Poster({ movie, genres = [], size = 'md', mediaType, cla
   const saveButtonPosition = preferences.saveButtonPosition
   const showWatchButton = preferences.showWatchButton
   const showPosterTitle = preferences.showPosterTitle
+  const showAdFreeStatus = preferences.showAdFreeStatus ?? true
 
   const [fetchedGenres, setFetchedGenres] = useState([])
   const [countdown, setCountdown] = useState(null)
@@ -233,6 +234,15 @@ export default function Poster({ movie, genres = [], size = 'md', mediaType, cla
             aria-label={`Watch ${movie.title}`}
           />
         )}
+        {/* Top-left Ad-free badge */}
+        {showAdFreeStatus && movie.downloadStatus === 'ad_free' && (
+          <span
+            className="absolute top-2 left-2 z-[2] px-2 py-0.5 rounded text-[10px] font-semibold bg-red-600/90 text-white tracking-wide"
+            aria-label="Ad-free"
+          >
+            AdFree
+          </span>
+        )}
         {/* Top-right save icon (when saveButtonPosition is top_right) */}
         {saveButtonPosition === 'top_right' && (
           <button
@@ -347,6 +357,12 @@ export default function Poster({ movie, genres = [], size = 'md', mediaType, cla
                     ))
                   )}
                 </div>
+              )}
+
+              {movie.downloadStatus && (
+                <>
+                  <p  className='text-gray-400 text-xs mt-2'>AdFree: <span className={movie.downloadStatus === 'ad_free' ? 'text-green-500' : 'text-amber-500'}>{movie.downloadStatus === 'ad_free' ? 'AdFree' : movie.downloadStatus}</span></p>
+                </>
               )}
 
               {movie.overview && (

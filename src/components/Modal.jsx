@@ -1,9 +1,9 @@
-function Modal({ open, onClose, title, children }) {
+function Modal({ open, onClose, title, children, backdropClassName = 'bg-black/60' }) {
   if (!open) return null
 
   return (
     <div
-      className="modal-backdrop fixed inset-0 bg-black/60 flex items-center justify-center z-10000 p-2 sm:p-4 overflow-y-auto overscroll-contain"
+      className={`modal-backdrop fixed inset-0 ${backdropClassName} flex items-center justify-center z-10000 p-2 sm:p-4 overflow-y-auto overscroll-contain`}
       onClick={onClose}
       role="dialog"
       aria-modal="true"

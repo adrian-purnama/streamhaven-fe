@@ -10,6 +10,7 @@ export const DEFAULT_PREFERENCES = {
   showTopPickOnHome: true,
   showPosterTitle: false,
   showPromoTicker: true,
+  showAdFreeStatus: true,
 }
 
 const PreferencesContext = createContext(null)
@@ -27,6 +28,7 @@ function loadFromStorage() {
       showTopPickOnHome: typeof parsed.showTopPickOnHome === 'boolean' ? parsed.showTopPickOnHome : DEFAULT_PREFERENCES.showTopPickOnHome,
       showPosterTitle: typeof parsed.showPosterTitle === 'boolean' ? parsed.showPosterTitle : DEFAULT_PREFERENCES.showPosterTitle,
       showPromoTicker: typeof parsed.showPromoTicker === 'boolean' ? parsed.showPromoTicker : DEFAULT_PREFERENCES.showPromoTicker,
+      showAdFreeStatus: typeof parsed.showAdFreeStatus === 'boolean' ? parsed.showAdFreeStatus : DEFAULT_PREFERENCES.showAdFreeStatus,
     }
   } catch {
     return DEFAULT_PREFERENCES

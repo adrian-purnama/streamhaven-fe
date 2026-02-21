@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Bookmark, EyeOff, Play, Star, Type, MessageSquare } from 'lucide-react'
+import { Bookmark, EyeOff, Play, Star, Type, MessageSquare, BadgeCheck } from 'lucide-react'
 import { usePreferences } from '../../context/PreferencesContext'
 
 const SAVE_BUTTON_OPTIONS = [
@@ -190,6 +190,28 @@ export default function PreferenceForm() {
               (preferences.showPromoTicker ?? true) ? 'bg-amber-500 justify-end' : 'bg-gray-600 justify-start'
             }`}
             aria-pressed={preferences.showPromoTicker ?? true}
+          >
+            <span className="block w-5 h-5 rounded-full bg-white shadow" />
+          </button>
+        </div>
+
+        {/* Show Ad-free status on poster (showAdFreeStatus) */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-xl bg-gray-800/50 border border-gray-700">
+          <div className="flex gap-4 flex-1">
+            <PreferenceIconBox icon={BadgeCheck} className="w-20 h-14 shrink-0" />
+            <div className="min-w-0">
+              <p className="text-gray-400 text-sm font-medium">Show Ad-free badge on poster</p>
+              <p className="text-gray-500 text-xs mt-0.5">Show the Ad-free badge on the top-left of movie posters when available.</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => handleUpdate('showAdFreeStatus', !(preferences.showAdFreeStatus ?? true))}
+            className={`shrink-0 w-12 h-7 rounded-full p-0.5 flex items-center transition-colors disabled:opacity-50 ${
+              (preferences.showAdFreeStatus ?? true) ? 'bg-amber-500 justify-end' : 'bg-gray-600 justify-start'
+            }`}
+            aria-pressed={preferences.showAdFreeStatus ?? true}
           >
             <span className="block w-5 h-5 rounded-full bg-white shadow" />
           </button>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { CalendarClock } from 'lucide-react'
+import { CalendarClock, BadgeInfo } from 'lucide-react'
 import apiHelper from '../helper/apiHelper'
 import { getRedirectToLastWatched, setLastWatchedEpisode, isEpisodeWatched } from '../helper/lastWatchedHelper'
 import GenreChip from '../components/GenreChip'
@@ -9,6 +9,7 @@ import PosterGrid from '../components/PosterGrid'
 import Seasons from '../components/Seasons'
 import Country from '../components/Country'
 import SaveModal from '../components/SaveModal'
+import Modal from '../components/Modal'
 
 /** Format YYYY-MM-DD to "Mon DD, YYYY" (e.g. Feb 15, 2026) */
 function formatAirDate(airDate) {
@@ -27,6 +28,7 @@ export default function WatchNowPage() {
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [infoExpanded, setInfoExpanded] = useState(false)
   const [saveModalOpen, setSaveModalOpen] = useState(false)
+  const [adFreeHelpModalOpen, setAdFreeHelpModalOpen] = useState(false)
   const requestIdRef = useRef(0)
 
   useEffect(() => {
@@ -57,6 +59,7 @@ export default function WatchNowPage() {
       .get(tvUrl)
       .then((res) => {
         if (currentId !== requestIdRef.current) return
+        console.log(res.data?.data)
         setMedia(res.data?.data ?? null)
       })
       .catch((err) => {
@@ -207,6 +210,11 @@ export default function WatchNowPage() {
               {/* Frame: mobile first, md second (takes remaining space); on md constrained so band stays 70vh */}
               <div className="order-1 md:order-2 flex-1 min-w-0 min-h-0 mx-4 md:overflow-hidden flex md:items-center md:justify-center">
                 <div className="relative w-full aspect-[19/9] md:h-full md:max-h-full md:w-auto md:aspect-[19/9] bg-gray-800 rounded-lg overflow-hidden">
+                  {media.downloadStatus === 'ad_free' && (
+                    <div className="absolute top-2 left-2 right-2 z-10 px-3 py-2 rounded-lg bg-green-600/90 text-white text-xs font-medium shadow-lg">
+                      Ad-free works when you&apos;re logged in and pick <strong>StreamHaven</strong>.
+                    </div>
+                  )}
                   {watchLinks[selectedIndex]?.link ? (
                     <iframe
                       src={watchLinks[selectedIndex].link}
@@ -530,6 +538,12 @@ export default function WatchNowPage() {
           <div className="flex-1 min-h-0 flex flex-col min-w-0 w-full">
             <div className="mx-4 flex-1">
               <div className="relative w-full aspect-[19/9] bg-gray-800 rounded-lg overflow-hidden">
+                {media.downloadStatus === 'ad_free' && (
+                  <div className="absolute opacity-50 top-2 left-2 right-2 z-10 px-3 py-2 rounded-lg bg-green-600/90 text-white text-xs font-medium shadow-lg w-fit">
+                    <p>Ad-free works when you&apos;re logged in</p>
+                    <p>and pick <strong>StreamHaven</strong>.</p>
+                  </div>
+                )}
                 {watchLinks[selectedIndex]?.link ? (
                   <iframe
                     src={watchLinks[selectedIndex].link}
@@ -578,8 +592,10 @@ export default function WatchNowPage() {
                       {media.runtime != null && media.runtime > 0 && (
                         <><dt className="text-gray-500">Runtime</dt><dd className="text-gray-300">{media.runtime} min</dd></>
                       )}
-                      {media.imdb_id && (
-                        <><dt className="text-gray-500">IMDB</dt><dd className="text-gray-300"><a href={`https://www.imdb.com/title/${media.imdb_id}`} target="_blank" rel="noopener noreferrer" className="text-amber-400 hover:text-amber-300">{media.imdb_id}</a></dd></>
+                      {media.downloadStatus ? (
+                        <><dt className="text-gray-500"><span className="inline-flex items-center gap-1">AdFree Status<button type="button" onClick={() => setAdFreeHelpModalOpen(true)} className="text-amber-500 hover:text-amber-400 cursor-help inline-flex" aria-label="Learn how to help get ad-free movies"><BadgeInfo className="w-4 h-4" /></button></span></dt><dd className="text-gray-300">{media.downloadStatus === 'ad_free' ? 'AdFree' : media.downloadStatus}</dd></>
+                      ) : (
+                        <><dt className="text-gray-500"><span className="inline-flex items-center gap-1">AdFree Status<button type="button" onClick={() => setAdFreeHelpModalOpen(true)} className="text-amber-500 hover:text-amber-400 cursor-help inline-flex" aria-label="Learn how to help get ad-free movies"><BadgeInfo className="w-4 h-4" /></button></span></dt><dd className="text-gray-300">Not Yet Added</dd></>
                       )}
                       {Array.isArray(media.genres) && media.genres.length > 0 && (
                         <><dt className="text-gray-500">Genres</dt><dd className="text-gray-300 flex flex-wrap gap-1.5">{media.genres.map((g) => <GenreChip key={g.id ?? g.name} name={g.name} id={g.id} mediaType={mediaType} />)}</dd></>
@@ -631,6 +647,7 @@ export default function WatchNowPage() {
                               {media.budget != null && media.budget > 0 && (<><dt className="text-gray-500">Budget</dt><dd className="text-gray-300">{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(media.budget)}</dd></>)}
                               {media.revenue != null && media.revenue > 0 && (<><dt className="text-gray-500">Revenue</dt><dd className="text-gray-300">{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(media.revenue)}</dd></>)}
                               {media.status && (<><dt className="text-gray-500">Status</dt><dd className="text-gray-300">{media.status}</dd></>)}
+                              {media.imdb_id && (<><dt className="text-gray-500">IMDB</dt><dd className="text-gray-300"><a href={`https://www.imdb.com/title/${media.imdb_id}`} target="_blank" rel="noopener noreferrer" className="text-amber-400 hover:text-amber-300">{media.imdb_id}</a></dd></>)}
                               {(Array.isArray(media.credits?.cast) ? media.credits.cast : Array.isArray(media.cast) ? media.cast : []).length > 0 && (<><dt className="text-gray-500">Cast</dt><dd className="text-gray-300">{(media.credits?.cast ?? media.cast ?? []).slice(0, 12).map((p) => p.name).filter(Boolean).join(', ')}{((media.credits?.cast ?? media.cast)?.length ?? 0) > 12 && ' …'}</dd></>)}
                             </dl>
                           )}
@@ -669,6 +686,23 @@ export default function WatchNowPage() {
         onClose={() => setSaveModalOpen(false)}
         item={saveItem}
       />
+      <Modal
+        open={adFreeHelpModalOpen}
+        onClose={() => setAdFreeHelpModalOpen(false)}
+        title="How to help get ad-free movies"
+      >
+        <div className="text-sm text-gray-300 space-y-3">
+          <p>
+            Ad-free movies are hosted when someone adds them to the download queue. The system downloads the video and uploads it, making it available for everyone without ads.
+          </p>
+          <p>
+            <strong className="text-gray-100">You can help!</strong> If you have admin access, you can queue this movie (or any other) in the admin panel under the download queue. Add a movie by TMDB or IMDB ID, and it will be processed in the background.
+          </p>
+          <p>
+            Once downloaded and uploaded, the movie will appear as &quot;Ad-free&quot; here and for all viewers. Thank you for contributing to the ad-free library!
+          </p>
+        </div>
+      </Modal>
     </div>
   )
 }

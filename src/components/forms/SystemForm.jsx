@@ -8,6 +8,7 @@ function SystemForm() {
   const [loading, setLoading] = useState(true)
   const [appName, setAppName] = useState('FC')
   const [openRegistration, setOpenRegistration] = useState(false)
+  const [openAdFreeRequest, setOpenAdFreeRequest] = useState(false)
   const [logoUrl, setLogoUrl] = useState('')
   const [logoFullUrl, setLogoFullUrl] = useState('')
   const [tagLine, setTagLine] = useState('')
@@ -25,6 +26,7 @@ function SystemForm() {
       if (sys) {
         setAppName(sys.appName ?? 'FC')
         setOpenRegistration(sys.openRegistration ?? false)
+        setOpenAdFreeRequest(sys.openAdFreeRequest ?? false)
         setLogoUrl(sys.logoUrl ?? '')
         setLogoFullUrl(sys.logoFullUrl ?? '')
         setTagLine(sys.tagLine ?? '')
@@ -45,7 +47,7 @@ function SystemForm() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     try {
-      await apiHelper.put('/api/system', { appName, openRegistration, logoUrl, logoFullUrl, tagLine })
+      await apiHelper.put('/api/system', { appName, openRegistration, openAdFreeRequest, logoUrl, logoFullUrl, tagLine })
       toast.success('System updated')
       fetchSystem()
     } catch (err) {
@@ -58,6 +60,7 @@ function SystemForm() {
     if (system) {
       setAppName(system.appName ?? 'FC')
       setOpenRegistration(system.openRegistration ?? false)
+      setOpenAdFreeRequest(system.openAdFreeRequest ?? false)
       setLogoUrl(system.logoUrl ?? '')
       setLogoFullUrl(system.logoFullUrl ?? '')
       setTagLine(system.tagLine ?? '')
@@ -228,6 +231,18 @@ function SystemForm() {
         />
         <label htmlFor="system-open-registration" className="text-sm font-medium text-gray-300">
           Open registration (allow new users to register)
+        </label>
+      </div>
+      <div className="flex items-center gap-2">
+        <input
+          id="system-open-ad-free-request"
+          type="checkbox"
+          checked={openAdFreeRequest}
+          onChange={(e) => setOpenAdFreeRequest(e.target.checked)}
+          className="rounded border-gray-600 bg-gray-700 text-amber-500 focus:ring-amber-500"
+        />
+        <label htmlFor="system-open-ad-free-request" className="text-sm font-medium text-gray-300">
+          Open ad-free request (show &quot;Add ad-free movie&quot; button to users)
         </label>
       </div>
       <div className="flex gap-2 pt-2">

@@ -6,7 +6,9 @@ import Poster from '../components/Poster'
 import PosterGrid from '../components/PosterGrid'
 import InfiniteTicker from '../components/InfiniteTicker'
 import FeedbackModal from '../components/FeedbackModal'
+import AddAdFreeMovieModal from '../components/AddAdFreeMovieModal'
 import { usePreferences } from '../context/PreferencesContext'
+import { useImage } from '../context/ImageContext'
 
 const TOP_N = 10
 
@@ -28,8 +30,10 @@ const emptyTv = { now_playing: [], popular: [], top_rated: [] }
 
 export default function HomePage() {
   const { preferences } = usePreferences()
+  const { openAdFreeRequest } = useImage()
   const [activeTab, setActiveTab] = useState('movies')
   const [feedbackOpen, setFeedbackOpen] = useState(false)
+  const [addAdFreeModalOpen, setAddAdFreeModalOpen] = useState(false)
   const [movieData, setMovieData] = useState(emptyMovies)
   const [tvData, setTvData] = useState(emptyTv)
   const [loading, setLoading] = useState(true)
@@ -42,12 +46,12 @@ export default function HomePage() {
       const normalized =
         raw && typeof raw === 'object' && !Array.isArray(raw)
           ? {
-              ...emptyMovies,
-              now_playing: Array.isArray(raw.now_playing) ? raw.now_playing : [],
-              popular: Array.isArray(raw.popular) ? raw.popular : [],
-              top_rated: Array.isArray(raw.top_rated) ? raw.top_rated : [],
-              top_pick: Array.isArray(raw.top_pick) ? raw.top_pick : [],
-            }
+            ...emptyMovies,
+            now_playing: Array.isArray(raw.now_playing) ? raw.now_playing : [],
+            popular: Array.isArray(raw.popular) ? raw.popular : [],
+            top_rated: Array.isArray(raw.top_rated) ? raw.top_rated : [],
+            top_pick: Array.isArray(raw.top_pick) ? raw.top_pick : [],
+          }
           : emptyMovies
       setMovieData(normalized)
     } catch (err) {
@@ -63,11 +67,11 @@ export default function HomePage() {
       const normalized =
         raw && typeof raw === 'object' && !Array.isArray(raw)
           ? {
-              ...emptyTv,
-              now_playing: Array.isArray(raw.now_playing) ? raw.now_playing : [],
-              popular: Array.isArray(raw.popular) ? raw.popular : [],
-              top_rated: Array.isArray(raw.top_rated) ? raw.top_rated : [],
-            }
+            ...emptyTv,
+            now_playing: Array.isArray(raw.now_playing) ? raw.now_playing : [],
+            popular: Array.isArray(raw.popular) ? raw.popular : [],
+            top_rated: Array.isArray(raw.top_rated) ? raw.top_rated : [],
+          }
           : emptyTv
       setTvData(normalized)
     } catch (err) {
@@ -130,40 +134,7 @@ export default function HomePage() {
           </>
         )}
 
-        <div className="px-4 md:px-6 lg:px-8 py-4 space-y-8">
-          <div className="relative z-10 flex flex-wrap items-center gap-3 mb-2 md:mx-[5rem]">
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setActiveTab('movies')}
-                className={`cursor-pointer px-4 py-2 rounded-lg font-medium transition-colors ${
-                  activeTab === 'movies'
-                    ? 'bg-amber-500 text-gray-900'
-                    : 'bg-gray-800 text-gray-400 hover:text-white'
-                }`}
-              >
-                Movies
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('tv')}
-                className={`cursor-pointer px-4 py-2 rounded-lg font-medium transition-colors ${
-                  activeTab === 'tv'
-                    ? 'bg-amber-500 text-gray-900'
-                    : 'bg-gray-800 text-gray-400 hover:text-white'
-                }`}
-              >
-                TV
-              </button>
-            </div>
-            {loading && (
-              <span className="text-gray-500 text-sm flex items-center gap-2" aria-live="polite">
-                <span className="inline-block w-4 h-4 border-2 border-gray-500 border-t-amber-500 rounded-full animate-spin" aria-hidden />
-                Loading…
-              </span>
-            )}
-          </div>
-      </div>
+
 
 
         {rows.map(({ key, title, showAll }) => {
@@ -175,6 +146,47 @@ export default function HomePage() {
               key={`${activeTab}-${key}`}
               className="md:mx-[5rem] py-8 border-b border-gray-500/50 last:border-b-0 mx-4"
             >
+              <div className="">
+                <div className="relative z-10 flex flex-wrap items-center gap-3 mb-2">
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('movies')}
+                      className={`cursor-pointer px-4 py-2 rounded-lg font-medium transition-colors ${activeTab === 'movies'
+                          ? 'bg-amber-500 text-gray-900'
+                          : 'bg-gray-800 text-gray-400 hover:text-white'
+                        }`}
+                    >
+                      Movies
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('tv')}
+                      className={`cursor-pointer px-4 py-2 rounded-lg font-medium transition-colors ${activeTab === 'tv'
+                          ? 'bg-amber-500 text-gray-900'
+                          : 'bg-gray-800 text-gray-400 hover:text-white'
+                        }`}
+                    >
+                      TV
+                    </button>
+                  </div>
+                  {openAdFreeRequest && (
+                    <button
+                      type="button"
+                      onClick={() => setAddAdFreeModalOpen(true)}
+                      className="text-gray-500 hover:text-gray-400 text-sm transition-colors"
+                    >
+                      + Request ad-free
+                    </button>
+                  )}
+                  {loading && (
+                    <span className="text-gray-500 text-sm flex items-center gap-2" aria-live="polite">
+                      <span className="inline-block w-4 h-4 border-2 border-gray-500 border-t-amber-500 rounded-full animate-spin" aria-hidden />
+                      Loading…
+                    </span>
+                  )}
+                </div>
+              </div>
               <div className="flex items-center justify-between gap-4 mb-4">
                 <h2 className="text-[2rem] font-semibold">{title.toUpperCase()}</h2>
                 {showAll && (
@@ -200,6 +212,7 @@ export default function HomePage() {
           )
         })}
       </div>
+      <AddAdFreeMovieModal open={addAdFreeModalOpen} onClose={() => setAddAdFreeModalOpen(false)} />
     </div>
   )
 }

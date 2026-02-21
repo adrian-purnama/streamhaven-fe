@@ -11,6 +11,7 @@ export function ImageProvider({ children }) {
   const [logoFullUrl, setLogoFullUrl] = useState('')
   const [appName, setAppName] = useState('Stream Haven')
   const [tagLine, setTagLine] = useState('')
+  const [openAdFreeRequest, setOpenAdFreeRequest] = useState(false)
   const [imageLoading, setImageLoading] = useState(true)
 
   const fetchBranding = useCallback(async () => {
@@ -22,12 +23,14 @@ export function ImageProvider({ children }) {
         setLogoUrl(d.logoUrl ? (d.logoUrl.startsWith('/') ? formatImageUrl(d.logoUrl) : d.logoUrl) : '')
         setLogoFullUrl(d.logoFullUrl ? (d.logoFullUrl.startsWith('/') ? formatImageUrl(d.logoFullUrl) : d.logoFullUrl) : '')
         setTagLine(d.tagLine || '')
+        setOpenAdFreeRequest(Boolean(d.openAdFreeRequest))
       }
     } catch {
       setLogoUrl('')
       setLogoFullUrl('')
       setAppName('Stream Haven')
       setTagLine('')
+      setOpenAdFreeRequest(false)
     } finally {
       setImageLoading(false)
     }
@@ -52,6 +55,7 @@ export function ImageProvider({ children }) {
     logoFullUrl,
     appName,
     tagLine,
+    openAdFreeRequest,
     imageLoading,
     refetchBranding: fetchBranding,
   }

@@ -5,6 +5,18 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+@font-face {
+  font-family: 'carre';
+  src: url('/fonts/carre.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+.font-carre {
+  font-family: 'carre', sans-serif;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 html {
