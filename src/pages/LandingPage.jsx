@@ -209,7 +209,7 @@ export default function LandingPage() {
           <DotPattern
           glow={true}
             className={cn(
-              "[mask-image:radial-gradient(500px_circle_at_center,white,transparent)]"
+              "text-amber-400 [mask-image:radial-gradient(500px_circle_at_center,white,transparent)]"
             )}
           />
         </div>
