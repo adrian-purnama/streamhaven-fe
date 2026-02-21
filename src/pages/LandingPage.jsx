@@ -202,7 +202,7 @@ export default function LandingPage() {
   }, [location])
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white pt-20 px-6">
+    <div className="min-h-screen bg-gray-900 text-white pt-20 px-2 sm:px-6">
       <div className="max-w-6xl mx-auto relative">
         
         <div className="pointer-events-none absolute top-[-10rem] left-0 right-0 z-0 h-[min(200vh,800px)]">
@@ -218,7 +218,7 @@ export default function LandingPage() {
           <img
             src={logoFull}
             alt={appName}
-            className="max-w-[20rem] w-fit mx-auto mb-6"
+            className="max-w-[25rem] w-fit mx-auto mb-6"
           />
           <p className="text-lg text-gray-300">
                         {tagLine}
