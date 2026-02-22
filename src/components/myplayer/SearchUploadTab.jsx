@@ -11,6 +11,15 @@ const QUALITY_OPTIONS = [
   { value: 'high', label: 'High' },
 ]
 
+function formatBytes(bytes) {
+  if (bytes == null || !Number.isFinite(bytes)) return '—'
+  const n = Number(bytes)
+  if (n < 1024) return `${n} B`
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`
+  if (n < 1024 * 1024 * 1024) return `${(n / (1024 * 1024)).toFixed(1)} MB`
+  return `${(n / (1024 * 1024 * 1024)).toFixed(1)} GB`
+}
+
 function SearchUploadTab() {
   const [activeTab] = useState('queue')
   const [queueList, setQueueList] = useState([])
@@ -181,32 +190,65 @@ function SearchUploadTab() {
     }
   }
 
-  const showDownloaderProgress = downloaderProgress != null && (downloaderProgress.phase === 'downloading' || downloaderProgress.phase === 'uploading')
-  const topProgressPercent = showDownloaderProgress
-    ? downloaderProgress.phase === 'uploading' && downloaderProgress.upload?.bytes_total != null
-      ? Math.min(100, downloaderProgress.upload.percent != null
-        ? Number(downloaderProgress.upload.percent)
-        : downloaderProgress.upload.bytes_total
-          ? (Number(downloaderProgress.upload.bytes_sent || 0) / Number(downloaderProgress.upload.bytes_total)) * 100
-          : 0)
-      : downloaderProgress.download?.total_pages != null && downloaderProgress.download?.current_page != null
-        ? (Number(downloaderProgress.download.current_page) / Number(downloaderProgress.download.total_pages)) * 100
-        : 0
-    : 0
+  const showLiveBlock = downloaderProgress != null
+
+  const downloaderUpdatedAgo = (() => {
+    const u = downloaderProgress?.updatedAt
+    if (u == null) return null
+    const sec = Math.max(0, Math.floor(Date.now() / 1000 - Number(u)))
+    if (sec < 5) return 'just now'
+    if (sec < 60) return `${sec}s ago`
+    return `${Math.floor(sec / 60)}m ago`
+  })()
 
   return (
     <div className="p-6 space-y-6">
-      {showDownloaderProgress && (
-        <div className="rounded-lg bg-gray-800/50 border border-cyan-500/40 overflow-hidden">
-          <div className="h-1.5 w-full bg-gray-700">
-            <div
-              className="h-full rounded-r-full bg-amber-300 transition-[width] duration-300"
-              style={{ width: `${topProgressPercent}%` }}
-            />
+      {showLiveBlock && (
+        <div className="rounded-xl border border-cyan-500/40 bg-gray-800/50 p-5 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-base font-medium text-cyan-200">Downloader live progress</h3>
+            <span className="text-gray-500 text-sm">
+              {downloaderProgress.error ? `Backend: ${downloaderProgress.error}` : downloaderUpdatedAgo ? `Updated ${downloaderUpdatedAgo}` : 'Streaming'}
+            </span>
           </div>
-          <p className="text-xs text-gray-400 px-2 py-1 truncate">
-            {downloaderProgress.explanation || (downloaderProgress.phase === 'uploading' ? `Upload ${topProgressPercent.toFixed(0)}%` : `Download ${topProgressPercent.toFixed(0)}%`)}
-          </p>
+          <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+            <span><strong className="text-gray-300">Phase:</strong> <span className="capitalize text-cyan-300">{downloaderProgress.phase ?? '—'}</span></span>
+            {downloaderProgress.jobId != null && (
+              <span><strong className="text-gray-300">JobId:</strong> <span className="font-mono text-gray-400 truncate max-w-[160px] inline-block align-bottom" title={String(downloaderProgress.jobId)}>{String(downloaderProgress.jobId)}</span></span>
+            )}
+            {downloaderProgress.updatedAt != null && (
+              <span><strong className="text-gray-300">Last updated:</strong> <span className="text-gray-400">{new Date(Number(downloaderProgress.updatedAt) * 1000).toLocaleString()}</span></span>
+            )}
+          </div>
+          {downloaderProgress.explanation && (
+            <p className="text-gray-400 text-sm break-words">{downloaderProgress.explanation}</p>
+          )}
+          {(downloaderProgress.phase === 'downloading' || downloaderProgress.phase === 'uploading') && downloaderProgress.download?.total_pages != null && downloaderProgress.download?.current_page != null && (
+            <div className="text-sm">
+              <strong className="text-gray-300">Download:</strong>{' '}
+              <span className="text-gray-400">Page {downloaderProgress.download.current_page} / {downloaderProgress.download.total_pages}</span>
+              {downloaderProgress.download?.error && (
+                <span className="text-red-400 ml-2" title={downloaderProgress.download.error}>{downloaderProgress.download.error}</span>
+              )}
+            </div>
+          )}
+          {downloaderProgress.phase === 'uploading' && downloaderProgress.upload != null && (
+            <div className="text-sm">
+              <strong className="text-gray-300">Upload:</strong>{' '}
+              <span className="text-gray-400">
+                {downloaderProgress.upload.percent != null ? `${downloaderProgress.upload.percent}%` : ''}
+                {downloaderProgress.upload.bytes_sent != null && downloaderProgress.upload.bytes_total != null && (
+                  <> {formatBytes(downloaderProgress.upload.bytes_sent)} / {formatBytes(downloaderProgress.upload.bytes_total)}</>
+                )}
+              </span>
+              {downloaderProgress.upload?.error && (
+                <span className="text-red-400 ml-2" title={downloaderProgress.upload.error}>{downloaderProgress.upload.error}</span>
+              )}
+            </div>
+          )}
+          {downloaderProgress.phase === 'idle' && !downloaderProgress.error && (
+            <p className="text-gray-500 text-sm">No active job. Start a waiting job to see live progress.</p>
+          )}
         </div>
       )}
 
