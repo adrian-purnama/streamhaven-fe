@@ -6,6 +6,20 @@ const PAGE_SIZE = 20
 
 const STAGING_RETRY_STATUSES = 'pending,storage_fail,daily_fail,max_upload_fail,error'
 
+function formatEtaSeconds(sec) {
+  if (sec == null || !Number.isFinite(sec) || sec < 0) return ''
+  const s = Math.round(sec)
+  if (s < 60) return `~${s}s`
+  if (s < 3600) {
+    const m = Math.floor(s / 60)
+    const r = s % 60
+    return r > 0 ? `~${m}m ${r}s` : `~${m}m`
+  }
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  return m > 0 ? `~${h}h ${m}m` : `~${h}h`
+}
+
 const TABS = [
   { id: 'staging', label: 'Staging & retry' },
   { id: 'processing', label: 'Current processing' },
@@ -170,8 +184,49 @@ function StagingTab() {
 
   const slugStatusLabel = (slugStatus) => (slugStatus === 'ready' ? 'Ready' : 'Not ready yet')
 
+  const showStagingProgressBar = processStatus?.isProcessing && processStatus?.total > 0
+  const stagingCompleted = (processStatus?.processed ?? 0) + (processStatus?.failed ?? 0)
+  const stagingProgressPercent = showStagingProgressBar ? Math.min(100, (stagingCompleted / processStatus.total) * 100) : 0
+  const stagingEtaSec = (() => {
+    if (!showStagingProgressBar || !processStatus?.startedAt || stagingCompleted <= 0) return null
+    const remaining = processStatus.total - stagingCompleted
+    if (remaining <= 0) return null
+    const elapsedSec = (Date.now() - new Date(processStatus.startedAt).getTime()) / 1000
+    const timePerItem = elapsedSec / stagingCompleted
+    return remaining * timePerItem
+  })()
+
   return (
     <div className="p-6 space-y-6">
+      {showStagingProgressBar && (
+        <div className="rounded-xl border border-cyan-500/40 bg-gray-800/50 p-5 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-base font-medium text-cyan-200">Uploading to Abyss</h3>
+            <span className="text-gray-500 text-sm">
+              {processStatus.processed + processStatus.failed + (processStatus.currentStagingId ? 1 : 0)} of {processStatus.total}
+              {stagingEtaSec != null && (
+                <span className="text-amber-300/90 ml-2" title="Estimated time remaining">{formatEtaSeconds(stagingEtaSec)} left</span>
+              )}
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+            <span><strong className="text-gray-300">Phase:</strong> <span className="capitalize text-cyan-300">uploading</span></span>
+            {processStatus.currentStagingId && (
+              <span><strong className="text-gray-300">Current:</strong> <span className="font-mono text-gray-400 truncate max-w-[160px] inline-block align-bottom" title={processStatus.currentStagingId}>{processStatus.currentStagingId}</span></span>
+            )}
+            {processStatus.lastUpdatedAt && (
+              <span><strong className="text-gray-300">Last updated:</strong> <span className="text-gray-400">{new Date(processStatus.lastUpdatedAt).toLocaleString()}</span></span>
+            )}
+          </div>
+          <div className="h-2 w-full rounded-full bg-gray-700 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-amber-300 transition-[width] duration-300"
+              style={{ width: `${stagingProgressPercent}%` }}
+            />
+          </div>
+        </div>
+      )}
+
       <div className="flex gap-1 border-b border-gray-700">
         {TABS.map((tab) => (
           <button
