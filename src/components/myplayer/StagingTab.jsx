@@ -378,7 +378,7 @@ function StagingTab() {
             <p className="text-gray-500 text-sm py-8">No successful uploads yet.</p>
           ) : (
             <>
-              <ul className="space-y-4">
+              <ul className="scrollbar-sleek space-y-4 max-h-80 overflow-y-auto pr-1">
                 {uploadedList.map((item) => (
                   <li
                     key={item._id}
@@ -407,23 +407,26 @@ function StagingTab() {
                 ))}
               </ul>
               {uploadedTotal > PAGE_SIZE && (
-                <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-700">
+                <div className="flex flex-wrap items-center justify-between gap-2 mt-4 pt-4 border-t border-gray-700">
                   <p className="text-gray-500 text-sm">
                     {uploadedSkip + 1}–{Math.min(uploadedSkip + PAGE_SIZE, uploadedTotal)} of {uploadedTotal}
                   </p>
-                  <div className="flex gap-2">
+                  <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => setUploadedSkip((s) => Math.max(0, s - PAGE_SIZE))}
-                      disabled={uploadedSkip === 0}
+                      disabled={uploadedLoading || uploadedSkip === 0}
                       className="px-3 py-1.5 rounded-lg border border-gray-600 text-gray-300 text-sm hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Previous
                     </button>
+                    <span className="text-gray-500 text-xs">
+                      Page {Math.floor(uploadedSkip / PAGE_SIZE) + 1} of {Math.max(1, Math.ceil(uploadedTotal / PAGE_SIZE))}
+                    </span>
                     <button
                       type="button"
                       onClick={() => setUploadedSkip((s) => s + PAGE_SIZE)}
-                      disabled={uploadedSkip + PAGE_SIZE >= uploadedTotal}
+                      disabled={uploadedLoading || uploadedSkip + PAGE_SIZE >= uploadedTotal}
                       className="px-3 py-1.5 rounded-lg border border-gray-600 text-gray-300 text-sm hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Next
