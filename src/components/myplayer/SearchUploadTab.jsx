@@ -20,6 +20,20 @@ function formatBytes(bytes) {
   return `${(n / (1024 * 1024 * 1024)).toFixed(1)} GB`
 }
 
+function formatEtaSeconds(sec) {
+  if (sec == null || !Number.isFinite(sec) || sec < 0) return ''
+  const s = Math.round(sec)
+  if (s < 60) return `~${s}s`
+  if (s < 3600) {
+    const m = Math.floor(s / 60)
+    const r = s % 60
+    return r > 0 ? `~${m}m ${r}s` : `~${m}m`
+  }
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  return m > 0 ? `~${h}h ${m}m` : `~${h}h`
+}
+
 function SearchUploadTab() {
   const [activeTab] = useState('queue')
   const [queueList, setQueueList] = useState([])
@@ -30,7 +44,10 @@ function SearchUploadTab() {
   const [queueMovie, setQueueMovie] = useState(null)
   const [processing, setProcessing] = useState(false)
   const [downloaderProgress, setDownloaderProgress] = useState(null)
+  const [etaDownloadSec, setEtaDownloadSec] = useState(null)
+  const [etaUploadSec, setEtaUploadSec] = useState(null)
   const startedNextForJobRef = useRef(new Set())
+  const speedRef = useRef({ lastDownload: null, lastUpload: null, speedDownload: null, speedUpload: null })
 
   const fetchQueue = async (page = queuePage) => {
     setQueueLoading(true)
@@ -120,6 +137,58 @@ function SearchUploadTab() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchQueue stable enough for WS callback
   }, [activeTab])
+
+  useEffect(() => {
+    const p = downloaderProgress
+    if (!p) {
+      setEtaDownloadSec(null)
+      setEtaUploadSec(null)
+      speedRef.current = { lastDownload: null, lastUpload: null, speedDownload: null, speedUpload: null }
+      return
+    }
+    const now = Date.now() / 1000
+    const r = speedRef.current
+    const d = p.download
+    if (d?.current_page != null && d?.total_pages != null && (p.phase === 'downloading' || p.phase === 'uploading')) {
+      const page = Number(d.current_page)
+      const total = Number(d.total_pages)
+      const remaining = Math.max(0, total - page)
+      if (r.lastDownload != null && now - r.lastDownload.t >= 0.5) {
+        const dt = now - r.lastDownload.t
+        const dp = page - r.lastDownload.page
+        if (dt > 0 && dp >= 0) {
+          const instant = dp / dt
+          r.speedDownload = r.speedDownload == null ? instant : 0.7 * r.speedDownload + 0.3 * instant
+          if (remaining > 0 && r.speedDownload > 0) setEtaDownloadSec(remaining / r.speedDownload)
+        }
+      }
+      r.lastDownload = { t: now, page }
+      if (remaining <= 0) setEtaDownloadSec(null)
+    } else {
+      setEtaDownloadSec(null)
+      if (p.phase !== 'downloading' && p.phase !== 'uploading') r.lastDownload = null
+    }
+    const u = p.upload
+    if (u?.bytes_sent != null && u?.bytes_total != null && p.phase === 'uploading') {
+      const sent = Number(u.bytes_sent)
+      const total = Number(u.bytes_total)
+      const remaining = Math.max(0, total - sent)
+      if (r.lastUpload != null && now - r.lastUpload.t >= 0.5) {
+        const dt = now - r.lastUpload.t
+        const dBytes = sent - r.lastUpload.bytes
+        if (dt > 0 && dBytes >= 0) {
+          const instant = dBytes / dt
+          r.speedUpload = r.speedUpload == null ? instant : 0.7 * r.speedUpload + 0.3 * instant
+          if (remaining > 0 && r.speedUpload > 0) setEtaUploadSec(remaining / r.speedUpload)
+        }
+      }
+      r.lastUpload = { t: now, bytes: sent }
+      if (remaining <= 0) setEtaUploadSec(null)
+    } else {
+      setEtaUploadSec(null)
+      if (p.phase !== 'uploading') r.lastUpload = null
+    }
+  }, [downloaderProgress])
 
   const addToQueue = async () => {
     const movie = queueMovie
@@ -224,25 +293,55 @@ function SearchUploadTab() {
             <p className="text-gray-400 text-sm break-words">{downloaderProgress.explanation}</p>
           )}
           {(downloaderProgress.phase === 'downloading' || downloaderProgress.phase === 'uploading') && downloaderProgress.download?.total_pages != null && downloaderProgress.download?.current_page != null && (
-            <div className="text-sm">
-              <strong className="text-gray-300">Download:</strong>{' '}
-              <span className="text-gray-400">Page {downloaderProgress.download.current_page} / {downloaderProgress.download.total_pages}</span>
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-center text-sm">
+                <strong className="text-gray-300">Download:</strong>
+                <span className="text-gray-400">
+                  Page {downloaderProgress.download.current_page} / {downloaderProgress.download.total_pages}
+                  {etaDownloadSec != null && (
+                    <span className="text-amber-300/90 ml-2" title="Estimated time remaining">{formatEtaSeconds(etaDownloadSec)} left</span>
+                  )}
+                </span>
+              </div>
+              <div className="h-2 w-full rounded-full bg-gray-700 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-amber-300 transition-[width] duration-300"
+                  style={{ width: `${(Number(downloaderProgress.download.current_page) / Number(downloaderProgress.download.total_pages)) * 100}%` }}
+                />
+              </div>
               {downloaderProgress.download?.error && (
-                <span className="text-red-400 ml-2" title={downloaderProgress.download.error}>{downloaderProgress.download.error}</span>
+                <p className="text-red-400 text-xs" title={downloaderProgress.download.error}>{downloaderProgress.download.error}</p>
               )}
             </div>
           )}
           {downloaderProgress.phase === 'uploading' && downloaderProgress.upload != null && (
-            <div className="text-sm">
-              <strong className="text-gray-300">Upload:</strong>{' '}
-              <span className="text-gray-400">
-                {downloaderProgress.upload.percent != null ? `${downloaderProgress.upload.percent}%` : ''}
-                {downloaderProgress.upload.bytes_sent != null && downloaderProgress.upload.bytes_total != null && (
-                  <> {formatBytes(downloaderProgress.upload.bytes_sent)} / {formatBytes(downloaderProgress.upload.bytes_total)}</>
-                )}
-              </span>
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-center text-sm">
+                <strong className="text-gray-300">Upload:</strong>
+                <span className="text-gray-400">
+                  {downloaderProgress.upload.percent != null ? `${downloaderProgress.upload.percent}%` : ''}
+                  {downloaderProgress.upload.bytes_sent != null && downloaderProgress.upload.bytes_total != null && (
+                    <> {formatBytes(downloaderProgress.upload.bytes_sent)} / {formatBytes(downloaderProgress.upload.bytes_total)}</>
+                  )}
+                  {etaUploadSec != null && (
+                    <span className="text-amber-300/90 ml-2" title="Estimated time remaining">{formatEtaSeconds(etaUploadSec)} left</span>
+                  )}
+                </span>
+              </div>
+              <div className="h-2 w-full rounded-full bg-gray-700 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-amber-300 transition-[width] duration-300"
+                  style={{
+                    width: `${Math.min(100, downloaderProgress.upload.percent != null
+                      ? Number(downloaderProgress.upload.percent)
+                      : downloaderProgress.upload.bytes_total
+                        ? (Number(downloaderProgress.upload.bytes_sent || 0) / Number(downloaderProgress.upload.bytes_total)) * 100
+                        : 0)}%`,
+                  }}
+                />
+              </div>
               {downloaderProgress.upload?.error && (
-                <span className="text-red-400 ml-2" title={downloaderProgress.upload.error}>{downloaderProgress.upload.error}</span>
+                <p className="text-red-400 text-xs" title={downloaderProgress.upload.error}>{downloaderProgress.upload.error}</p>
               )}
             </div>
           )}
