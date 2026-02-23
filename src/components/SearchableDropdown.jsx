@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 
 const SearchableDropdown = ({
   options = [],
@@ -122,7 +123,7 @@ const SearchableDropdown = ({
         <span className={`flex items-center gap-2 truncate ${hasSelection ? 'text-gray-100' : 'text-gray-400'}`}>
           {displayContent}
         </span>
-        <span className="text-gray-500 shrink-0">{open ? '▲' : '▼'}</span>
+        {open ? <ChevronUp className="w-4 h-4 text-gray-500 shrink-0" aria-hidden /> : <ChevronDown className="w-4 h-4 text-gray-500 shrink-0" aria-hidden />}
       </button>
 
       {open &&

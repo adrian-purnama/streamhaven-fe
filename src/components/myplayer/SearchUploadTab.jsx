@@ -466,25 +466,24 @@ function SearchUploadTab() {
               </ul>
             )}
             {queueTotal > 0 && (
-              <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-gray-700">
-                <p className="text-gray-500 text-xs">Total: {queueTotal}</p>
-                <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-700">
+                <p className="text-gray-500 text-sm">
+                  {(queuePage - 1) * queueLimit + 1}–{Math.min(queuePage * queueLimit, queueTotal)} of {queueTotal}
+                </p>
+                <div className="flex gap-2">
                   <button
                     type="button"
                     onClick={() => fetchQueue(queuePage - 1)}
                     disabled={queueLoading || queuePage <= 1}
-                    className="px-2 py-1 text-xs font-medium text-gray-400 hover:text-gray-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="px-3 py-1.5 rounded-lg border border-gray-600 text-gray-300 text-sm hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Prev
+                    Previous
                   </button>
-                  <span className="text-gray-500 text-xs">
-                    Page {queuePage} of {Math.max(1, Math.ceil(queueTotal / queueLimit))}
-                  </span>
                   <button
                     type="button"
                     onClick={() => fetchQueue(queuePage + 1)}
                     disabled={queueLoading || queuePage * queueLimit >= queueTotal}
-                    className="px-2 py-1 text-xs font-medium text-gray-400 hover:text-gray-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="px-3 py-1.5 rounded-lg border border-gray-600 text-gray-300 text-sm hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Next
                   </button>

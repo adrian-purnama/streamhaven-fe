@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { Link, NavLink } from 'react-router-dom'
+import { LogOut } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useImage } from '../context/ImageContext'
 import MultiSearch from './MultiSearch'
 
 function Navbar() {
-  const { isLoggedIn, email, authLoading, profileUrl } = useAuth()
+  const { isLoggedIn, email, authLoading, profileUrl, logout } = useAuth()
   const { logo } = useImage()
   const [mobileOpen, setMobileOpen] = useState(false)
 
@@ -85,23 +86,32 @@ function Navbar() {
             </NavLink>
           </div>
 
-          {/* Desktop profile circle */}
-          <div className="hidden lg:flex items-center">
+          {/* Desktop profile circle + logout */}
+          <div className="hidden lg:flex items-center gap-2">
             {isLoggedIn ? (
-              <Link
-                to="/profile"
-                className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-600 text-gray-100 font-semibold text-sm hover:bg-amber-500 hover:text-gray-900 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 focus:ring-offset-gray-800"
-                aria-label="Profile"
-                title={email}
-              >
-                {profileUrl ? (
-                  <img src={profileUrl} alt="Profile" className="w-full h-full object-cover rounded-full" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-500 text-3xl font-medium">
-                    {(email && email[0]) ? email[0].toUpperCase() : '?'}
-                  </div>
-                )}
-              </Link>
+              <>
+                <Link
+                  to="/profile"
+                  className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-600 text-gray-100 font-semibold text-sm hover:bg-amber-500 hover:text-gray-900 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 focus:ring-offset-gray-800"
+                  aria-label="Profile"
+                  title={email}
+                >
+                  {profileUrl ? (
+                    <img src={profileUrl} alt="Profile" className="w-full h-full object-cover rounded-full" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-500 text-3xl font-medium">
+                      {(email && email[0]) ? email[0].toUpperCase() : '?'}
+                    </div>
+                  )}
+                </Link>
+                <button
+                  type="button"
+                  onClick={logout}
+                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-gray-300 hover:text-amber-400 hover:bg-gray-700/50 transition-colors"
+                >
+                  <LogOut className="w-4 h-4" aria-hidden />
+                </button>
+              </>
             ) : (
               <div className="flex items-center gap-2">
                 <Link
@@ -198,27 +208,37 @@ function Navbar() {
 
             <div className="pt-2 border-t border-gray-800 mt-2">
               {isLoggedIn ? (
-                <Link
-                  to="/profile"
-                  onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-700/70 transition-colors"
-                >
-                  <div className="flex items-center justify-center w-9 h-9 rounded-full bg-gray-600 text-gray-100 font-semibold text-sm">
-                    {profileUrl ? (
-                      <img src={profileUrl} alt="Profile" className="w-full h-full object-cover rounded-full" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-500 text-3xl font-medium">
-                        {(email && email[0]) ? email[0].toUpperCase() : '?'}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium text-gray-100">Profile</span>
-                    <span className="text-xs text-gray-400 truncate max-w-[12rem]">
-                      {email}
-                    </span>
-                  </div>
-                </Link>
+                <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg hover:bg-gray-700/70 transition-colors">
+                  <Link
+                    to="/profile"
+                    onClick={() => setMobileOpen(false)}
+                    className="flex items-center gap-3 min-w-0 flex-1"
+                  >
+                    <div className="flex items-center justify-center w-9 h-9 shrink-0 rounded-full bg-gray-600 text-gray-100 font-semibold text-sm">
+                      {profileUrl ? (
+                        <img src={profileUrl} alt="Profile" className="w-full h-full object-cover rounded-full" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-500 text-3xl font-medium">
+                          {(email && email[0]) ? email[0].toUpperCase() : '?'}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-sm font-medium text-gray-100">Profile</span>
+                      <span className="text-xs text-gray-400 truncate max-w-48">
+                        {email}
+                      </span>
+                    </div>
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => { setMobileOpen(false); logout() }}
+                    className="shrink-0 p-2 rounded-lg text-gray-300 hover:bg-gray-600/70 hover:text-amber-400 transition-colors"
+                    aria-label="Logout"
+                  >
+                    <LogOut className="w-5 h-5" aria-hidden />
+                  </button>
+                </div>
               ) : (
                 <div className="flex gap-2 px-1 pt-1">
                   <Link

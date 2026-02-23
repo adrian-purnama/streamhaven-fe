@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 import toast from 'react-hot-toast'
 import apiHelper, { baseURL } from '../../helper/apiHelper'
 import { useImage } from '../../context/ImageContext'
@@ -626,7 +627,7 @@ const RegisterPage = () => {
                 className="w-full py-3 px-4 rounded-lg border border-gray-600 bg-gray-700/50 text-gray-200 font-medium hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 text-left flex items-center justify-between"
               >
                 <span>Custom — choose which folders and items to import</span>
-                <span className="text-gray-500">{importChoice === 'custom' ? '▼' : '▶'}</span>
+                {importChoice === 'custom' ? <ChevronDown className="w-4 h-4 text-gray-500 shrink-0" aria-hidden /> : <ChevronRight className="w-4 h-4 text-gray-500 shrink-0" aria-hidden />}
               </button>
 
               {importChoice === 'custom' && (

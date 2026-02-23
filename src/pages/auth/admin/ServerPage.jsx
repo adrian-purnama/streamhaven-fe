@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 import toast from 'react-hot-toast'
 import apiHelper from '../../../helper/apiHelper'
 import DataTable from '../../../components/DataTable'
@@ -31,7 +32,7 @@ function EmbedGuide() {
         className="w-full flex items-center justify-between px-4 py-3 text-left text-gray-200 hover:bg-gray-700/30 transition-colors"
       >
         <span className="font-medium">Where are servers used & how to modify</span>
-        <span className="text-gray-500" aria-hidden>{open ? '▼' : '▶'}</span>
+        {open ? <ChevronDown className="w-4 h-4 text-gray-500 shrink-0" aria-hidden /> : <ChevronRight className="w-4 h-4 text-gray-500 shrink-0" aria-hidden />}
       </button>
       {open && (
         <div className="px-4 pb-4 space-y-4 border-t border-gray-700">

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { CalendarClock, BadgeInfo } from 'lucide-react'
+import { CalendarClock, BadgeInfo, ArrowLeft, Bookmark, ChevronRight, ChevronDown } from 'lucide-react'
 import apiHelper from '../helper/apiHelper'
 import { getRedirectToLastWatched, setLastWatchedEpisode, isEpisodeWatched } from '../helper/lastWatchedHelper'
 import GenreChip from '../components/GenreChip'
@@ -130,9 +130,7 @@ export default function WatchNowPage() {
           onClick={handleBack}
           className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gray-800 border border-gray-600 text-gray-200 text-sm font-medium hover:bg-gray-700 hover:border-amber-500/50 hover:text-amber-400 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 focus:ring-offset-gray-950"
         >
-          <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
+          <ArrowLeft className="w-4 h-4 shrink-0" aria-hidden />
           Back
         </button>
       </div>
@@ -160,9 +158,7 @@ export default function WatchNowPage() {
             onClick={handleBack}
             className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-gray-300 hover:text-amber-400 hover:bg-gray-800/80 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 focus:ring-offset-gray-900"
           >
-            <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
+            <ArrowLeft className="w-4 h-4 shrink-0" aria-hidden />
             Back
           </button>
         {saveItem && (
@@ -171,9 +167,7 @@ export default function WatchNowPage() {
             onClick={() => setSaveModalOpen(true)}
             className="flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-gray-500 bg-gray-800 text-gray-200 text-sm font-medium hover:border-amber-500 hover:bg-gray-700/80 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-            </svg>
+            <Bookmark className="w-5 h-5" aria-hidden />
             Save to list
           </button>
         )}
@@ -211,11 +205,6 @@ export default function WatchNowPage() {
               {/* Frame: mobile first, md second (takes remaining space); on md constrained so band stays 70vh */}
               <div className="order-1 md:order-2 flex-1 min-w-0 min-h-0 mx-4 md:overflow-hidden flex md:items-center md:justify-center">
                 <div className="relative w-full aspect-[19/9] md:h-full md:max-h-full md:w-auto md:aspect-[19/9] bg-gray-800 rounded-lg overflow-hidden">
-                  {media.downloadStatus === 'ad_free' && (
-                    <div className="absolute top-2 left-2 right-2 z-10 px-3 py-2 rounded-lg bg-green-600/90 text-white text-xs font-medium shadow-lg">
-                      Ad-free works when you&apos;re logged in and pick <strong>StreamHaven</strong>.
-                    </div>
-                  )}
                   {watchLinks[selectedIndex]?.link ? (
                     <iframe
                       src={watchLinks[selectedIndex].link}
@@ -277,6 +266,11 @@ export default function WatchNowPage() {
             {/* Rest (servers, title, overview, etc.) */}
             <div className="flex-1 min-h-0 overflow-y-auto">
               <div className="mx-4 flex-1">
+                {media.downloadStatus === 'ad_free' && (
+                  <div className="mt-4 px-4 py-3 rounded-lg bg-green-600/15 border border-green-500/30 text-green-200 text-sm">
+                    <strong>Ad-free:</strong> Be logged in and select the <strong>StreamHaven</strong> server to watch without ads.
+                  </div>
+                )}
                 <div className="flex flex-wrap gap-2 items-center mt-4">
                   <h3 className="text-lg font-bold mr-2">Servers</h3>
                   {watchLinks.length === 0 ? (
@@ -314,12 +308,6 @@ export default function WatchNowPage() {
 
                       {/* Basic info — always visible */}
                       <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
-                        {media.release_date && (
-                          <>
-                            <dt className="text-gray-500">Release date</dt>
-                            <dd className="text-gray-300">{media.release_date}</dd>
-                          </>
-                        )}
                         {media.vote_average != null && (
                           <>
                             <dt className="text-gray-500">Rating</dt>
@@ -329,12 +317,6 @@ export default function WatchNowPage() {
                                 <span className="text-gray-500 ml-1">({media.vote_count} votes)</span>
                               )}
                             </dd>
-                          </>
-                        )}
-                        {media.runtime != null && media.runtime > 0 && (
-                          <>
-                            <dt className="text-gray-500">Runtime</dt>
-                            <dd className="text-gray-300">{media.runtime} min</dd>
                           </>
                         )}
                         {media.imdb_id && (
@@ -365,7 +347,9 @@ export default function WatchNowPage() {
                       </dl>
 
                       {/* Expandable: country, production, actors, tagline, languages, budget, etc. */}
-                      {(media.number_of_seasons != null ||
+                      {(media.release_date ||
+                        (media.runtime != null && media.runtime > 0) ||
+                        media.number_of_seasons != null ||
                         media.number_of_episodes != null ||
                         media.original_language ||
                         (media.original_title && media.original_title !== media.title) ||
@@ -386,13 +370,23 @@ export default function WatchNowPage() {
                               className="flex items-center gap-2 text-sm font-medium text-gray-400 hover:text-amber-400 transition-colors"
                               aria-expanded={infoExpanded}
                             >
-                              <span className="text-amber-500 select-none" aria-hidden>
-                                {infoExpanded ? '▼' : '▶'}
-                              </span>
+                              {infoExpanded ? <ChevronDown className="w-4 h-4 text-amber-500 shrink-0" aria-hidden /> : <ChevronRight className="w-4 h-4 text-amber-500 shrink-0" aria-hidden />}
                               {infoExpanded ? 'Hide' : 'Show'} more info
                             </button>
                             {infoExpanded && (
                               <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
+                                {media.release_date && (
+                                  <>
+                                    <dt className="text-gray-500">Release date</dt>
+                                    <dd className="text-gray-300">{media.release_date}</dd>
+                                  </>
+                                )}
+                                {media.runtime != null && media.runtime > 0 && (
+                                  <>
+                                    <dt className="text-gray-500">Runtime</dt>
+                                    <dd className="text-gray-300">{media.runtime} min</dd>
+                                  </>
+                                )}
                                 {media.number_of_seasons != null && (
                                   <>
                                     <dt className="text-gray-500">Seasons</dt>
@@ -538,13 +532,12 @@ export default function WatchNowPage() {
         {!(isTv && episodeCount > 0) && (
           <div className="flex-1 min-h-0 flex flex-col min-w-0 w-full">
             <div className="mx-4 flex-1">
+              {media.downloadStatus === 'ad_free' && (
+                <div className="mt-4 px-4 py-3 rounded-lg bg-green-600/15 border border-green-500/30 text-green-200 text-sm mb-2 w-fit">
+                  <strong>Ad-free:</strong> Be logged in and select the <strong>StreamHaven</strong> server to watch without ads.
+                </div>
+              )}
               <div className="relative w-full aspect-[19/9] bg-gray-800 rounded-lg overflow-hidden">
-                {media.downloadStatus === 'ad_free' && (
-                  <div className="absolute opacity-50 top-2 left-2 right-2 z-10 px-3 py-2 rounded-lg bg-green-600/90 text-white text-xs font-medium shadow-lg w-fit">
-                    <p>Ad-free works when you&apos;re logged in</p>
-                    <p>and pick <strong>StreamHaven</strong>.</p>
-                  </div>
-                )}
                 {watchLinks[selectedIndex]?.link ? (
                   <iframe
                     src={watchLinks[selectedIndex].link}
@@ -575,7 +568,7 @@ export default function WatchNowPage() {
               </div>
               <h1 className="text-[2rem] font-bold mt-4 mb-4 pt-2 border-t border-gray-700 text-gray-200">{media.title}</h1>
               {media.overview && (
-                <div className="flex items-start gap-4">
+                <div className="flex items-start gap-4 flex-col sm:flex-row">
                   {media.poster_url && (
                     <img src={media.poster_url} alt={media.title} className="w-40 shrink-0 rounded object-cover" />
                   )}
@@ -584,14 +577,8 @@ export default function WatchNowPage() {
                       {media.overview}
                     </p>
                     <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
-                      {media.release_date && (
-                        <><dt className="text-gray-500">Release date</dt><dd className="text-gray-300">{media.release_date}</dd></>
-                      )}
                       {media.vote_average != null && (
                         <><dt className="text-gray-500">Rating</dt><dd className="text-gray-300"><span className="text-amber-400">★</span> {Number(media.vote_average).toFixed(1)}</dd></>
-                      )}
-                      {media.runtime != null && media.runtime > 0 && (
-                        <><dt className="text-gray-500">Runtime</dt><dd className="text-gray-300">{media.runtime} min</dd></>
                       )}
                       {media.downloadStatus ? (
                         <><dt className="text-gray-500"><span className="inline-flex items-center gap-1">AdFree Status<button type="button" onClick={() => setAdFreeHelpModalOpen(true)} className="text-amber-500 hover:text-amber-400 cursor-help inline-flex" aria-label="Learn how to help get ad-free movies"><BadgeInfo className="w-4 h-4" /></button></span></dt><dd className="text-gray-300">{media.downloadStatus === 'ad_free' ? 'AdFree' : media.downloadStatus}</dd></>
@@ -602,7 +589,9 @@ export default function WatchNowPage() {
                         <><dt className="text-gray-500">Genres</dt><dd className="text-gray-300 flex flex-wrap gap-1.5">{media.genres.map((g) => <GenreChip key={g.id ?? g.name} name={g.name} id={g.id} mediaType={mediaType} />)}</dd></>
                       )}
                     </dl>
-                    {(media.number_of_seasons != null ||
+                    {(media.release_date ||
+                      (media.runtime != null && media.runtime > 0) ||
+                      media.number_of_seasons != null ||
                       media.number_of_episodes != null ||
                       media.original_language ||
                       (media.original_title && media.original_title !== media.title) ||
@@ -623,11 +612,13 @@ export default function WatchNowPage() {
                             className="flex items-center gap-2 text-sm font-medium text-gray-400 hover:text-amber-400 transition-colors"
                             aria-expanded={infoExpanded}
                           >
-                            <span className="text-amber-500 select-none" aria-hidden>{infoExpanded ? '▼' : '▶'}</span>
+                            {infoExpanded ? <ChevronDown className="w-4 h-4 text-amber-500 shrink-0" aria-hidden /> : <ChevronRight className="w-4 h-4 text-amber-500 shrink-0" aria-hidden />}
                             {infoExpanded ? 'Hide' : 'Show'} more info
                           </button>
                           {infoExpanded && (
                             <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
+                              {media.release_date && (<><dt className="text-gray-500">Release date</dt><dd className="text-gray-300">{media.release_date}</dd></>)}
+                              {media.runtime != null && media.runtime > 0 && (<><dt className="text-gray-500">Runtime</dt><dd className="text-gray-300">{media.runtime} min</dd></>)}
                               {media.number_of_seasons != null && (<><dt className="text-gray-500">Seasons</dt><dd className="text-gray-300">{media.number_of_seasons}</dd></>)}
                               {media.number_of_episodes != null && (<><dt className="text-gray-500">Episodes</dt><dd className="text-gray-300">{media.number_of_episodes}</dd></>)}
                               {media.original_language && (<><dt className="text-gray-500">Original language</dt><dd className="text-gray-300">{media.original_language}</dd></>)}
@@ -697,6 +688,12 @@ export default function WatchNowPage() {
         }
       >
         <div className="text-sm text-gray-300 space-y-4">
+          {media.downloadStatus === 'ad_free' && (
+            <div className="px-4 py-3 rounded-lg bg-green-600/15 border border-green-500/30 text-green-200">
+              <p className="font-medium mb-1">How to watch this ad-free</p>
+              <p>Be <strong>logged in</strong> and select the <strong>StreamHaven</strong> server above the player. You&apos;ll then get the ad-free stream.</p>
+            </div>
+          )}
           <p>
             Click <strong className="text-amber-400">&quot;Request ad-free&quot;</strong> on the home page, search by IMDB/TMDB ID, add it. <strong>Please Don&apos;t spam.</strong>
           </p>

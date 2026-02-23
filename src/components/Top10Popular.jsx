@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
+import { Play, ChevronLeft, ChevronRight } from 'lucide-react'
 import Poster from './Poster'
 
 const SCROLL_STEP = 320
@@ -178,9 +179,7 @@ export default function Top10Popular({ movies = [], loading = false, error = nul
                 to={`/watch/movie/${featured.externalId ?? featured._id}`}
                 className="inline-flex items-center gap-2 mt-4 px-5 py-2.5 rounded-lg bg-amber-500 text-gray-900 font-semibold text-sm hover:bg-amber-400 transition-colors shadow-lg shadow-amber-500/20"
               >
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                  <path d="M8 5v14l11-7z" />
-                </svg>
+                <Play className="w-5 h-5 fill-current" aria-hidden />
                 Watch now
               </Link>
             )}
@@ -223,9 +222,7 @@ export default function Top10Popular({ movies = [], loading = false, error = nul
                   aria-label="Scroll left"
                   className={`absolute left-1 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full flex items-center justify-center bg-gray-900/90 text-white border border-gray-600 shadow-lg transition-opacity focus:outline-none focus:ring-2 focus:ring-amber-500 ${canScrollLeft ? 'opacity-90 hover:opacity-100 hover:bg-gray-800' : 'opacity-40 cursor-default pointer-events-none'}`}
                 >
-                  <svg className="w-5 h-5 shrink-0" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
-                    <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
-                  </svg>
+                  <ChevronLeft className="w-5 h-5 shrink-0" aria-hidden />
                 </button>
                 {/* Right arrow */}
                 <button
@@ -235,9 +232,7 @@ export default function Top10Popular({ movies = [], loading = false, error = nul
                   aria-label="Scroll right"
                   className={`absolute right-1 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full flex items-center justify-center bg-gray-900/90 text-white border border-gray-600 shadow-lg transition-opacity focus:outline-none focus:ring-2 focus:ring-amber-500 ${canScrollRight ? 'opacity-90 hover:opacity-100 hover:bg-gray-800' : 'opacity-40 cursor-default pointer-events-none'}`}
                 >
-                  <svg className="w-5 h-5 shrink-0" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
-                    <path d="M8.59 16.59L10 18l6-6-6-6-1.41 1.41L13.17 12z" />
-                  </svg>
+                  <ChevronRight className="w-5 h-5 shrink-0" aria-hidden />
                 </button>
               </div>
             </div>

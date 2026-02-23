@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
+import { ChevronRight } from 'lucide-react'
 import apiHelper from '../../../helper/apiHelper'
 import SystemForm from '../../../components/forms/SystemForm'
 import SearchableDropdown from '../../../components/SearchableDropdown'
@@ -155,7 +156,7 @@ const SystemPage = () => {
                     className="rounded-lg border border-gray-700 bg-gray-900/80 overflow-hidden group"
                   >
                     <summary className="flex items-center gap-2 px-3 py-2.5 cursor-pointer list-none text-sm font-medium text-gray-200 hover:bg-gray-700/50 select-none">
-                      <span className="text-gray-500 group-open:rotate-90 transition-transform shrink-0">▶</span>
+                      <ChevronRight className="w-4 h-4 text-gray-500 group-open:rotate-90 transition-transform shrink-0" aria-hidden />
                       <span className="text-amber-400/90">{entry.logName}</span>
                       <span className="text-gray-500">·</span>
                       <span className="text-gray-400">{formatLogTimestamp(entry.logTimestamp)}</span>

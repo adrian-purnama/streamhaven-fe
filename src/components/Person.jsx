@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 import Modal from './Modal'
 import Poster from './Poster'
 import PosterGrid from './PosterGrid'
@@ -68,7 +69,7 @@ export default function Person({ person, detail = false, className = '' }) {
             onClick={() => setFullDataOpen((prev) => !prev)}
             className="flex items-center gap-2 text-sm font-medium text-gray-400 hover:text-amber-400 focus:outline-none focus:text-amber-400"
           >
-            <span>{fullDataOpen ? '▼' : '▶'}</span>
+            {fullDataOpen ? <ChevronDown className="w-4 h-4 shrink-0" aria-hidden /> : <ChevronRight className="w-4 h-4 shrink-0" aria-hidden />}
             <span>{fullDataOpen ? 'Hide full data' : 'Expand More'}</span>
           </button>
           {fullDataOpen && (

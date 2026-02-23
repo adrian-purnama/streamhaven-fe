@@ -57,6 +57,13 @@ export function AuthProvider({ children }) {
     verifyToken()
   }, [])
 
+  const logout = () => {
+    localStorage.removeItem('fc-token')
+    setEmail(null)
+    setIsAdmin(false)
+    setUserId(null)
+    setProfileUrl(PLACEHOLDER_AVATAR)
+  }
 
   const value = {
     email,
@@ -67,6 +74,7 @@ export function AuthProvider({ children }) {
     setProfileUrl,
     authLoading,
     verifyToken,
+    logout,
     isLoggedIn: !!email,
   }
 

@@ -1,6 +1,7 @@
 import { useRef, useState, useCallback, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
+import { Bookmark } from 'lucide-react'
 import axiosInstance from '../helper/apiHelper'
 import GenreChip from './GenreChip'
 import SaveModal from './SaveModal'
@@ -255,9 +256,7 @@ export default function Poster({ movie, genres = [], size = 'md', mediaType, cla
             className="absolute top-2 right-2 z-[2] w-9 h-9 rounded-full bg-gray-900/80 border border-gray-600 flex items-center justify-center text-gray-200 hover:bg-gray-800 hover:border-amber-500 hover:text-amber-400 transition-colors opacity-0 group-hover:opacity-100"
             aria-label="Save to list"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-            </svg>
+            <Bookmark className="w-5 h-5" aria-hidden />
           </button>
         )}
         {(showWatchButton || saveButtonPosition === 'bottom_center') && (
