@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { CalendarClock, BadgeInfo, ArrowLeft, Bookmark, ChevronRight, ChevronDown } from 'lucide-react'
+import { CalendarClock, BadgeInfo, ArrowLeft, Bookmark, ChevronRight, ChevronDown, Captions } from 'lucide-react'
 import apiHelper from '../helper/apiHelper'
 import { getRedirectToLastWatched, setLastWatchedEpisode, isEpisodeWatched } from '../helper/lastWatchedHelper'
 import GenreChip from '../components/GenreChip'
@@ -10,6 +10,7 @@ import Seasons from '../components/Seasons'
 import Country from '../components/Country'
 import SaveModal from '../components/SaveModal'
 import Modal from '../components/Modal'
+import SubtitleDownloaderForm from '../components/forms/SubtitleDownloaderForm'
 import { Highlighter } from "@/components/ui/highlighter"
 
 /** Format YYYY-MM-DD to "Mon DD, YYYY" (e.g. Feb 15, 2026) */
@@ -30,6 +31,7 @@ export default function WatchNowPage() {
   const [infoExpanded, setInfoExpanded] = useState(false)
   const [saveModalOpen, setSaveModalOpen] = useState(false)
   const [adFreeHelpModalOpen, setAdFreeHelpModalOpen] = useState(false)
+  const [subtitleModalOpen, setSubtitleModalOpen] = useState(false)
   const requestIdRef = useRef(0)
 
   useEffect(() => {
@@ -204,11 +206,11 @@ export default function WatchNowPage() {
             <div className="flex flex-col md:flex-row md:h-[70vh] md:min-h-0 shrink-0">
               {/* Frame: mobile first, md second (takes remaining space); on md constrained so band stays 70vh */}
               <div className="order-1 md:order-2 flex-1 min-w-0 min-h-0 mx-4 md:overflow-hidden flex md:items-center md:justify-center">
-                <div className="relative w-full aspect-[19/9] md:h-full md:max-h-full md:w-auto md:aspect-[19/9] bg-gray-800 rounded-lg overflow-hidden">
+                <div className="relative w-full aspect-[19/9] md:h-full md:max-h-full md:w-auto md:aspect-[19/9] bg-gray-800 rounded-lg overflow-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   {watchLinks[selectedIndex]?.link ? (
                     <iframe
                       src={watchLinks[selectedIndex].link}
-                      className="absolute inset-0 w-full h-full border-0 rounded-lg"
+                      className="absolute inset-0 w-full h-full border-0 rounded-lg [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                       title={`Watch ${media.title}`}
                       allowFullScreen
                       referrerPolicy="origin"
@@ -267,8 +269,10 @@ export default function WatchNowPage() {
             <div className="flex-1 min-h-0 overflow-y-auto">
               <div className="mx-4 flex-1">
                 {media.downloadStatus === 'ad_free' && (
-                  <div className="mt-4 px-4 py-3 rounded-lg bg-green-600/15 border border-green-500/30 text-green-200 text-sm">
-                    <strong>Ad-free:</strong> Be logged in and select the <strong>StreamHaven</strong> server to watch without ads.
+                  <div className="mt-4 px-4 py-3 rounded-lg bg-green-600/15 border border-green-500/30 text-green-200 text-sm flex flex-wrap items-center justify-between gap-3">
+                    <span>
+                      <strong>Ad-free:</strong> Be logged in and select the <strong>StreamHaven</strong> server to watch without ads.
+                    </span>
                   </div>
                 )}
                 <div className="flex flex-wrap gap-2 items-center mt-4">
@@ -533,15 +537,15 @@ export default function WatchNowPage() {
           <div className="flex-1 min-h-0 flex flex-col min-w-0 w-full">
             <div className="mx-4 flex-1">
               {media.downloadStatus === 'ad_free' && (
-                <div className="mt-4 px-4 py-3 rounded-lg bg-green-600/15 border border-green-500/30 text-green-200 text-sm mb-2 w-fit">
+                <div className="px-4 py-3 rounded-lg bg-green-600/15 border border-green-500/30 text-green-200 text-sm mb-2">
                   <strong>Ad-free:</strong> Be logged in and select the <strong>StreamHaven</strong> server to watch without ads.
                 </div>
               )}
-              <div className="relative w-full aspect-[19/9] bg-gray-800 rounded-lg overflow-hidden">
+              <div className="relative w-full aspect-[19/9] bg-gray-800 rounded-lg overflow-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {watchLinks[selectedIndex]?.link ? (
                   <iframe
                     src={watchLinks[selectedIndex].link}
-                    className="absolute inset-0 w-full h-full border-0 rounded-lg"
+                    className="absolute inset-0 w-full h-full border-0 rounded-lg [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                     title={`Watch ${media.title}`}
                     allowFullScreen
                     referrerPolicy="origin"
@@ -564,6 +568,19 @@ export default function WatchNowPage() {
                       {server.label || `Server ${i + 1}`}
                     </button>
                   ))
+                )}
+                {media.downloadStatus === 'ad_free' && (
+                  <>
+                    <span className="w-px h-5 bg-gray-600 mx-1" aria-hidden />
+                    <button
+                      type="button"
+                      onClick={() => setSubtitleModalOpen(true)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white transition-colors"
+                    >
+                      <Captions className="w-4 h-4" aria-hidden />
+                      Subtitles
+                    </button>
+                  </>
                 )}
               </div>
               <h1 className="text-[2rem] font-bold mt-4 mb-4 pt-2 border-t border-gray-700 text-gray-200">{media.title}</h1>
@@ -705,6 +722,18 @@ export default function WatchNowPage() {
           </div>
         </div>
       </Modal>
+      {media.downloadStatus === 'ad_free' && (
+        <Modal
+          open={subtitleModalOpen}
+          onClose={() => setSubtitleModalOpen(false)}
+          title="Download subtitle"
+        >
+          <SubtitleDownloaderForm
+            externalId={media?.externalId ?? id}
+            onCancel={() => setSubtitleModalOpen(false)}
+          />
+        </Modal>
+      )}
     </div>
   )
 }
