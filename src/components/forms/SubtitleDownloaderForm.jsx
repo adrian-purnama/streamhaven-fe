@@ -3,6 +3,7 @@ import { Captions, Check, Loader2, Download, RefreshCw, Search } from 'lucide-re
 import ReCAPTCHA from 'react-google-recaptcha'
 import apiHelper from '../../helper/apiHelper'
 import toast from 'react-hot-toast'
+import { Highlighter } from '../ui/highlighter'
 
 const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY || ''
 
@@ -113,6 +114,16 @@ export default function SubtitleDownloaderForm({
           </button>
         )}
       </div>
+
+      {/* Note: subtitle may take a while to show after download */}
+      {!loading && sorted.length > 0 && (
+        <p className="text-xs text-gray-400">
+          <Highlighter color="#FE9A00" action="underline">
+          <strong>Note :</strong>
+          </Highlighter>
+          Subtitles may take a moment to appear after download.
+        </p>
+      )}
 
       {/* Loading */}
       {loading && (
