@@ -164,8 +164,14 @@ function MultiSearch() {
                           <p className="text-gray-100 text-sm font-medium truncate">
                             {title}
                           </p>
-                          <p className="text-gray-500 text-xs capitalize">
-                            {item.media_type}
+                          <p className="text-gray-500 text-xs capitalize flex items-center gap-2 flex-wrap">
+                            <span>{item.media_type}</span>
+                            {(item.media_type === 'movie' || item.media_type === 'tv') &&
+                              item.downloadStatus === 'ad_free' && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-green-600/80 text-white">
+                                  Ad free
+                                </span>
+                              )}
                           </p>
                         </div>
                       </Link>
@@ -188,8 +194,14 @@ function MultiSearch() {
                           <p className="text-gray-100 text-sm font-medium truncate">
                             {title}
                           </p>
-                          <p className="text-gray-500 text-xs capitalize">
-                            {item.media_type}
+                          <p className="text-gray-500 text-xs capitalize flex items-center gap-2 flex-wrap">
+                            <span>{item.media_type}</span>
+                            {(item.media_type === 'movie' || item.media_type === 'tv') &&
+                              item.downloadStatus === 'ad_free' && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-green-600/80 text-white">
+                                  Ad free
+                                </span>
+                              )}
                           </p>
                         </div>
                       </div>

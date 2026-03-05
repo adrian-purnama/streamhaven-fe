@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, Fragment } from 'react'
 import toast from 'react-hot-toast'
-import { Waypoints, Pencil, Trash2, Settings } from 'lucide-react'
+import { Waypoints, Pencil, Trash2, Settings, ChevronDown, ChevronRight } from 'lucide-react'
 import apiHelper from '../../helper/apiHelper'
 import Modal from '../Modal'
 import SearchMovieForm from '../forms/SearchMovieForm'
@@ -21,14 +21,23 @@ function MappingTab() {
   const [savingId, setSavingId] = useState(null)
   const [deletingId, setDeletingId] = useState(null)
   const [remapItem, setRemapItem] = useState(null)
+  const [remapSelectedMovie, setRemapSelectedMovie] = useState(null)
+  const [remapSeason, setRemapSeason] = useState('')
+  const [remapEpisode, setRemapEpisode] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
 
   const [resourcesLoading, setResourcesLoading] = useState(false)
   const [resourcesData, setResourcesData] = useState(null)
+  const [resourcesTotal, setResourcesTotal] = useState(0)
+  const [resourcesPage, setResourcesPage] = useState(1)
   const [resourceInfoNode, setResourceInfoNode] = useState(null)
   const [renameInputValue, setRenameInputValue] = useState('')
   const [renaming, setRenaming] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(null)
+  const [openTvGroups, setOpenTvGroups] = useState({})
+  const [openTvSeasons, setOpenTvSeasons] = useState({})
+
+  const RESOURCES_PAGE_SIZE = 20
 
   const filteredList = list.filter((item) => {
     const q = searchQuery.trim().toLowerCase()
@@ -62,29 +71,45 @@ function MappingTab() {
     fetchList()
   }, [fetchList])
 
-  const fetchResources = useCallback(async () => {
+  const fetchResources = useCallback(async (pageOverride) => {
+    const page = pageOverride || resourcesPage
     setResourcesLoading(true)
     try {
-      const { data } = await apiHelper.get('/api/abyss/resources')
+      const params = {
+        limit: RESOURCES_PAGE_SIZE,
+        skip: (page - 1) * RESOURCES_PAGE_SIZE,
+      }
+      const { data } = await apiHelper.get('/api/abyss/resources', { params })
       if (data?.success && data?.data) {
         setResourcesData(data.data)
+        setResourcesTotal(data.data.total ?? 0)
       } else {
         setResourcesData(null)
+        setResourcesTotal(0)
       }
     } catch {
       setResourcesData(null)
+      setResourcesTotal(0)
     } finally {
       setResourcesLoading(false)
     }
-  }, [])
+  }, [resourcesPage])
 
   useEffect(() => {
-    if (activeTab === 'resources') fetchResources()
-  }, [activeTab, fetchResources])
+    if (activeTab === 'resources') fetchResources(resourcesPage)
+  }, [activeTab, resourcesPage, fetchResources])
 
   useEffect(() => {
     if (resourceInfoNode) setRenameInputValue(resourceInfoNode.name ?? '')
   }, [resourceInfoNode])
+
+  useEffect(() => {
+    if (!remapItem) {
+      setRemapSelectedMovie(null)
+      setRemapSeason('')
+      setRemapEpisode('')
+    }
+  }, [remapItem])
 
   const saveMapping = async (item) => {
     const id = item._id
@@ -95,6 +120,9 @@ function MappingTab() {
         externalId: item.externalId === '' || item.externalId == null ? null : Number(item.externalId),
         title: item.title ?? '',
         poster_path: item.poster_path === '' ? null : (item.poster_path || null),
+        ...(item.mediaType ? { mediaType: item.mediaType } : {}),
+        ...(item.seasonNumber != null ? { seasonNumber: item.seasonNumber } : {}),
+        ...(item.episodeNumber != null ? { episodeNumber: item.episodeNumber } : {}),
       }
       if (id) {
         const { data } = await apiHelper.patch(`/api/uploaded-videos/${id}`, payload)
@@ -196,29 +224,81 @@ function MappingTab() {
   const confirmRemap = useCallback(
     async (movie) => {
       if (!movie || !remapItem) return
+      const mediaType = movie.mediaType === 'tv' ? 'tv' : 'movie'
+      let seasonNumber = null
+      let episodeNumber = null
+
+      if (mediaType === 'tv') {
+        const s = Number(remapSeason)
+        const e = Number(remapEpisode)
+        if (!Number.isInteger(s) || s < 1 || !Number.isInteger(e) || e < 1) {
+          toast.error('Enter valid season and episode numbers for TV mapping')
+          return
+        }
+        seasonNumber = s
+        episodeNumber = e
+      }
+
       const updated = {
         ...remapItem,
         externalId: movie.id ?? remapItem.externalId,
-        title: movie.title ?? remapItem.title ?? '',
+        title: movie.title ?? movie.name ?? remapItem.title ?? '',
         poster_path: movie.poster_path ?? remapItem.poster_path ?? '',
+        mediaType,
+        seasonNumber,
+        episodeNumber,
       }
       if (remapItem._id) {
         setList((prev) => prev.map((it) => (it._id === remapItem._id ? updated : it)))
-        setRemapItem(null)
         await saveMapping(updated)
+        setRemapItem(null)
       } else {
         const ok = await saveMapping(updated)
         setRemapItem(null)
         if (ok && activeTab === 'resources') fetchResources()
       }
     },
-    [remapItem, activeTab, fetchResources]
+    [remapItem, activeTab, fetchResources, remapSeason, remapEpisode]
   )
 
   const items = resourcesData?.items ?? []
   const mappeditems = resourcesData?.mappeditems ?? []
   const mapped = items.map((resource, i) => ({ resource, uploadedVideo: mappeditems[i] })).filter((x) => x.uploadedVideo)
   const unmapped = items.map((resource, i) => ({ resource, uploadedVideo: mappeditems[i] })).filter((x) => !x.uploadedVideo)
+
+  const groupedMapped = mapped.reduce((acc, entry) => {
+    const { resource, uploadedVideo } = entry
+    if (!uploadedVideo) return acc
+    const mediaType = uploadedVideo.mediaType === 'tv' ? 'tv' : 'movie'
+    if (mediaType === 'tv' && uploadedVideo.externalId != null) {
+      const key = `tv-${uploadedVideo.externalId}`
+      let group = acc.find((g) => g.key === key)
+      if (!group) {
+        group = {
+          key,
+          type: 'tv',
+          externalId: uploadedVideo.externalId,
+          title: uploadedVideo.title || resource?.name || resource?.title || uploadedVideo.filename || '—',
+          posterUrl: uploadedVideo.poster_url || null,
+          episodes: [],
+        }
+        acc.push(group)
+      }
+      group.episodes.push({ resource, uploadedVideo })
+    } else {
+      const key = `movie-${uploadedVideo._id || resource?.id}`
+      let group = acc.find((g) => g.key === key)
+      if (!group) {
+        acc.push({
+          key,
+          type: 'movie',
+          resource,
+          uploadedVideo,
+        })
+      }
+    }
+    return acc
+  }, [])
 
   return (
     <div className="p-6 space-y-6">
@@ -377,49 +457,211 @@ function MappingTab() {
                       </tr>
                     </thead>
                     <tbody>
-                      {mapped.length === 0 ? (
+                      {groupedMapped.length === 0 ? (
                         <tr><td colSpan={4} className="py-4 text-gray-500">No mapped items</td></tr>
                       ) : (
-                        mapped.map(({ resource, uploadedVideo }) => {
-                          const slug = resource?.id
-                          const isSaving = remapItem?._id === uploadedVideo?._id && savingId != null
-                          const isDeleting = deletingId === slug || deletingId === uploadedVideo?._id
+                        groupedMapped.map((group) => {
+                          if (group.type === 'movie') {
+                            const { resource, uploadedVideo } = group
+                            const slug = resource?.id
+                            const isSaving = remapItem?._id === uploadedVideo?._id && savingId != null
+                            const isDeleting = deletingId === slug || deletingId === uploadedVideo?._id
+                            const title = uploadedVideo?.title ?? uploadedVideo?.filename ?? '—'
+                            return (
+                              <tr key={group.key} className="border-b border-gray-700">
+                                <td className="py-2 pr-4 font-mono text-gray-300">{slug ?? '—'}</td>
+                                <td className="py-2 pr-4">
+                                  <div className="flex items-center gap-3">
+                                    {uploadedVideo?.poster_url && (
+                                      <img
+                                        src={uploadedVideo.poster_url}
+                                        alt=""
+                                        className="w-10 h-14 rounded object-cover shrink-0 border border-gray-600"
+                                      />
+                                    )}
+                                    <span className="text-gray-200 truncate max-w-[220px]" title={title}>{title}</span>
+                                  </div>
+                                </td>
+                                <td className="py-2 pr-4 text-gray-400">
+                                  {uploadedVideo?.externalId != null ? uploadedVideo.externalId : '—'}
+                                </td>
+                                <td className="py-2 pr-4">
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => setResourceInfoNode(resource)}
+                                      className="p-1.5 rounded-lg border border-gray-500/60 text-gray-400 hover:bg-gray-600/50 hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                                      title="Info / Settings"
+                                    >
+                                      <Settings className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setRemapItem(uploadedVideo)}
+                                      disabled={isSaving || isDeleting}
+                                      className="p-1.5 rounded-lg bg-amber-500 text-gray-900 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                                      title="Remap"
+                                    >
+                                      <Pencil className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setDeleteConfirm({ type: 'resource', slug, label: title || slug })}
+                                      disabled={isSaving || isDeleting}
+                                      className="p-1.5 rounded-lg border border-red-500/60 text-red-400 hover:bg-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                                      title="Delete"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            )
+                          }
+
+                          const isOpen = !!openTvGroups[group.key]
+                          // group.episodes -> group.seasons (per seasonNumber)
+                          const seasonsMap = new Map()
+                          group.episodes.forEach(({ resource, uploadedVideo }) => {
+                            const sn = uploadedVideo?.seasonNumber ?? 0
+                            if (!seasonsMap.has(sn)) seasonsMap.set(sn, [])
+                            seasonsMap.get(sn).push({ resource, uploadedVideo })
+                          })
+                          const seasons = Array.from(seasonsMap.entries()).sort(
+                            (a, b) => (a[0] || 0) - (b[0] || 0)
+                          )
+
                           return (
-                            <tr key={resource?.id ?? uploadedVideo?._id} className="border-b border-gray-700">
-                              <td className="py-2 pr-4 font-mono text-gray-300">{slug ?? '—'}</td>
-                              <td className="py-2 pr-4 text-gray-200 truncate max-w-[200px]" title={uploadedVideo?.title ?? uploadedVideo?.filename ?? ''}>{uploadedVideo?.title ?? uploadedVideo?.filename ?? '—'}</td>
-                              <td className="py-2 pr-4 text-gray-400">{uploadedVideo?.externalId != null ? uploadedVideo.externalId : '—'}</td>
-                              <td className="py-2 pr-4">
-                                <div className="flex items-center gap-1">
+                            <Fragment key={group.key}>
+                              <tr className="border-b border-gray-700 bg-gray-800/60">
+                                <td className="py-2 pr-4">
                                   <button
                                     type="button"
-                                    onClick={() => setResourceInfoNode(resource)}
-                                    className="p-1.5 rounded-lg border border-gray-500/60 text-gray-400 hover:bg-gray-600/50 hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                                    title="Info / Settings"
+                                    onClick={() => setOpenTvGroups((prev) => ({ ...prev, [group.key]: !isOpen }))}
+                                    className="inline-flex items-center gap-2 text-gray-200"
                                   >
-                                    <Settings className="w-4 h-4" />
+                                    {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                                    <span className="font-mono text-xs text-gray-400">TV · TMDB {group.externalId}</span>
                                   </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => setRemapItem(uploadedVideo)}
-                                    disabled={isSaving || isDeleting}
-                                    className="p-1.5 rounded-lg bg-amber-500 text-gray-900 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                                    title="Remap"
-                                  >
-                                    <Pencil className="w-4 h-4" />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => setDeleteConfirm({ type: 'resource', slug, label: uploadedVideo?.title ?? uploadedVideo?.filename ?? slug })}
-                                    disabled={isSaving || isDeleting}
-                                    className="p-1.5 rounded-lg border border-red-500/60 text-red-400 hover:bg-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
-                                    title="Delete"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
+                                </td>
+                                <td className="py-2 pr-4 flex items-center gap-3">
+                                  {group.posterUrl ? (
+                                    <img
+                                      src={group.posterUrl}
+                                      alt=""
+                                      className="w-10 h-14 rounded object-cover shrink-0 border border-gray-600"
+                                    />
+                                  ) : null}
+                                  <span className="text-gray-200 truncate max-w-[220px]" title={group.title}>{group.title}</span>
+                                </td>
+                                <td className="py-2 pr-4 text-gray-400">{group.externalId}</td>
+                                <td className="py-2 pr-4 text-gray-500 text-xs">
+                                  {group.episodes.length} episode{group.episodes.length !== 1 ? 's' : ''}
+                                </td>
+                              </tr>
+                              {isOpen &&
+                                seasons.map(([seasonNumber, episodes]) => {
+                                  const seasonKey = `${group.key}-s${seasonNumber || '0'}`
+                                  const seasonOpen = !!openTvSeasons[seasonKey]
+                                  const label = seasonNumber ? `Season ${seasonNumber}` : 'Season ?'
+                                  return (
+                                    <Fragment key={seasonKey}>
+                                      <tr className="border-b border-gray-800 bg-gray-900/60">
+                                        <td className="py-1.5 pr-4 pl-6">
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              setOpenTvSeasons((prev) => ({
+                                                ...prev,
+                                                [seasonKey]: !seasonOpen,
+                                              }))
+                                            }
+                                            className="inline-flex items-center gap-2 text-xs text-gray-300"
+                                          >
+                                            {seasonOpen ? (
+                                              <ChevronDown className="w-3 h-3" />
+                                            ) : (
+                                              <ChevronRight className="w-3 h-3" />
+                                            )}
+                                            <span>{label}</span>
+                                          </button>
+                                        </td>
+                                        <td className="py-1.5 pr-4 text-gray-500 text-xs" colSpan={3}>
+                                          {episodes.length} episode{episodes.length !== 1 ? 's' : ''}
+                                        </td>
+                                      </tr>
+                                      {seasonOpen &&
+                                        episodes.map(({ resource, uploadedVideo }) => {
+                                          const slug = resource?.id
+                                          const isSaving =
+                                            remapItem?._id === uploadedVideo?._id && savingId != null
+                                          const isDeleting =
+                                            deletingId === slug || deletingId === uploadedVideo?._id
+                                          const epTitle =
+                                            uploadedVideo?.title ?? uploadedVideo?.filename ?? '—'
+                                          return (
+                                            <tr
+                                              key={slug}
+                                              className="border-b border-gray-900 bg-gray-900/40"
+                                            >
+                                              <td className="py-1.5 pr-4 pl-10 font-mono text-gray-400">
+                                                {slug ?? '—'}
+                                              </td>
+                                              <td
+                                                className="py-1.5 pr-4 text-gray-200 truncate max-w-[260px]"
+                                                title={epTitle}
+                                              >
+                                                S{uploadedVideo?.seasonNumber ?? '?'}E
+                                                {uploadedVideo?.episodeNumber ?? '?'} · {epTitle}
+                                              </td>
+                                              <td className="py-1.5 pr-4 text-gray-400">
+                                                {uploadedVideo?.externalId != null
+                                                  ? uploadedVideo.externalId
+                                                  : '—'}
+                                              </td>
+                                              <td className="py-1.5 pr-4">
+                                                <div className="flex items-center gap-1">
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => setResourceInfoNode(resource)}
+                                                    className="p-1.5 rounded-lg border border-gray-500/60 text-gray-400 hover:bg-gray-600/50 hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    title="Info / Settings"
+                                                  >
+                                                    <Settings className="w-4 h-4" />
+                                                  </button>
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => setRemapItem(uploadedVideo)}
+                                                    disabled={isSaving || isDeleting}
+                                                    className="p-1.5 rounded-lg bg-amber-500 text-gray-900 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    title="Remap"
+                                                  >
+                                                    <Pencil className="w-4 h-4" />
+                                                  </button>
+                                                  <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                      setDeleteConfirm({
+                                                        type: 'resource',
+                                                        slug,
+                                                        label: epTitle || slug,
+                                                      })
+                                                    }
+                                                    disabled={isSaving || isDeleting}
+                                                    className="p-1.5 rounded-lg border border-red-500/60 text-red-400 hover:bg-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    title="Delete"
+                                                  >
+                                                    <Trash2 className="w-4 h-4" />
+                                                  </button>
+                                                </div>
+                                              </td>
+                                            </tr>
+                                          )
+                                        })}
+                                    </Fragment>
+                                  )
+                                })}
+                            </Fragment>
                           )
                         })
                       )}
@@ -488,6 +730,41 @@ function MappingTab() {
                     </tbody>
                   </table>
                 </div>
+                {resourcesTotal > RESOURCES_PAGE_SIZE && (
+                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-700">
+                    <p className="text-gray-500 text-sm">
+                      {(resourcesPage - 1) * RESOURCES_PAGE_SIZE + 1}–
+                      {Math.min(resourcesPage * RESOURCES_PAGE_SIZE, resourcesTotal)} of {resourcesTotal}
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = Math.max(1, resourcesPage - 1)
+                          setResourcesPage(next)
+                          fetchResources(next)
+                        }}
+                        disabled={resourcesLoading || resourcesPage <= 1}
+                        className="px-3 py-1.5 rounded-lg border border-gray-600 text-gray-300 text-sm hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Previous
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = resourcesPage + 1
+                          if ((next - 1) * RESOURCES_PAGE_SIZE >= resourcesTotal) return
+                          setResourcesPage(next)
+                          fetchResources(next)
+                        }}
+                        disabled={resourcesLoading || resourcesPage * RESOURCES_PAGE_SIZE >= resourcesTotal}
+                        className="px-3 py-1.5 rounded-lg border border-gray-600 text-gray-300 text-sm hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -609,6 +886,13 @@ function MappingTab() {
           <SearchMovieForm
             placeholder="Old or new IMDB (tt…) or TMDB id"
             description="Enter old or new TMDB/IMDB id, then click Remap below to confirm."
+            onMovieSelect={(m) => {
+              setRemapSelectedMovie(m)
+              if (!m || m.mediaType !== 'tv') {
+                setRemapSeason('')
+                setRemapEpisode('')
+              }
+            }}
             renderActions={(movie) => (
               <button
                 type="button"
@@ -620,6 +904,38 @@ function MappingTab() {
               </button>
             )}
           />
+          {remapSelectedMovie?.mediaType === 'tv' && (
+            <div className="space-y-2">
+              <p className="text-gray-300 text-sm font-medium">TV episode details</p>
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="block text-xs text-gray-400 mb-1">Season</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={remapSeason}
+                    onChange={(e) => setRemapSeason(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm"
+                    placeholder="1"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-xs text-gray-400 mb-1">Episode</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={remapEpisode}
+                    onChange={(e) => setRemapEpisode(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm"
+                    placeholder="1"
+                  />
+                </div>
+              </div>
+              <p className="text-gray-500 text-xs">
+                Season and episode are required when remapping to a TV / series.
+              </p>
+            </div>
+          )}
         </div>
       </Modal>
     </div>

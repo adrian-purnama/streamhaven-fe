@@ -22,7 +22,7 @@ function formatAirDate(airDate) {
 }
 
 export default function WatchNowPage() {
-  const { mediaType, id, ss = '1', eps = '1' } = useParams()
+  const { mediaType, id, ss, eps } = useParams()
   const navigate = useNavigate()
   const [media, setMedia] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -75,12 +75,13 @@ export default function WatchNowPage() {
       })
   }, [id, mediaType, ss, eps])
 
-  // TV: resume last watched when opening show at default (1/1); always save current episode
+  // TV: resume last watched only when opening show without season/episode in URL (e.g. /watch/tv/84958); never redirect when user explicitly chose a season (e.g. clicked Season 1 -> /1/1)
   useEffect(() => {
     if (!media || mediaType !== 'tv' || !id) return
     const season = Number.isNaN(parseInt(ss, 10)) ? 1 : Math.max(0, parseInt(ss, 10))
     const episode = Math.max(1, parseInt(eps, 10) || 1)
-    const redirect = getRedirectToLastWatched(id, season, episode)
+    const openedWithoutEpisode = (ss === undefined || ss === '') && (eps === undefined || eps === '')
+    const redirect = openedWithoutEpisode ? getRedirectToLastWatched(id, season, episode) : null
     if (redirect) {
       navigate(redirect, { replace: true })
       return
@@ -150,6 +151,7 @@ export default function WatchNowPage() {
     : null
   const episodeCount = currentSeasonData?.episode_count ?? 0
   const nextEpisode = isTv ? (media.next_episode_to_air ?? null) : null
+  const adFreeEpisodeNumbers = Array.isArray(media.adFreeEpisodeNumbers) ? media.adFreeEpisodeNumbers : []
 
   return (
     <div className="min-h-screen bg-gray-900 text-white flex flex-col pb-10">
@@ -227,18 +229,24 @@ export default function WatchNowPage() {
                   {Array.from({ length: episodeCount }, (_, i) => i + 1).map((ep) => {
                     const isActive = ep === currentEpsNum
                     const watched = isEpisodeWatched(id, currentSeasonNum, ep)
+                    const isAdFree = adFreeEpisodeNumbers.includes(ep)
                     return (
                       <Link
                         key={ep}
                         to={`/watch/tv/${id}/${currentSeasonNum}/${ep}`}
-                        className={`block py-2 px-3 text-sm transition-colors shrink-0 border-b border-gray-700 ${isActive
+                        className={`flex items-center justify-between gap-2 py-2 px-3 text-sm transition-colors shrink-0 border-b border-gray-700 ${isActive
                             ? 'bg-amber-500/20 text-amber-400 font-medium'
                             : watched
                               ? 'text-emerald-400/90 hover:bg-gray-800 hover:text-emerald-300 bg-white-900'
                               : 'text-gray-300 hover:bg-gray-800 hover:text-white'
                           }`}
                       >
-                        E{ep}
+                        <span>E{ep}</span>
+                        {isAdFree && (
+                          <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-600/80 text-white" title="AdFree">
+                            AdFree
+                          </span>
+                        )}
                       </Link>
                     )
                   })}
@@ -310,7 +318,7 @@ export default function WatchNowPage() {
                         {media.overview}
                       </p>
 
-                      {/* Basic info — always visible */}
+                      {/* Basic info — always visible (same as movie: Rating, AdFree Status, Genres) */}
                       <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
                         {media.vote_average != null && (
                           <>
@@ -323,19 +331,19 @@ export default function WatchNowPage() {
                             </dd>
                           </>
                         )}
-                        {media.imdb_id && (
+                        {media.downloadStatus ? (
                           <>
-                            <dt className="text-gray-500">IMDB</dt>
-                            <dd className="text-gray-300">
-                              <a
-                                href={`https://www.imdb.com/title/${media.imdb_id}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-amber-400 hover:text-amber-300"
-                              >
-                                {media.imdb_id}
-                              </a>
-                            </dd>
+                            <dt className="text-gray-500">
+                              <span className="inline-flex items-center gap-1">AdFree Status<button type="button" onClick={() => setAdFreeHelpModalOpen(true)} className="text-amber-500 hover:text-amber-400 cursor-help inline-flex" aria-label="Learn how to help get ad-free"><BadgeInfo className="w-4 h-4" /></button></span>
+                            </dt>
+                            <dd className="text-gray-300">{media.downloadStatus === 'ad_free' ? 'AdFree' : media.downloadStatus}</dd>
+                          </>
+                        ) : (
+                          <>
+                            <dt className="text-gray-500">
+                              <span className="inline-flex items-center gap-1">AdFree Status<button type="button" onClick={() => setAdFreeHelpModalOpen(true)} className="text-amber-500 hover:text-amber-400 cursor-help inline-flex" aria-label="Learn how to help get ad-free"><BadgeInfo className="w-4 h-4" /></button></span>
+                            </dt>
+                            <dd className="text-gray-300">Not Yet Added</dd>
                           </>
                         )}
                         {Array.isArray(media.genres) && media.genres.length > 0 && (
@@ -350,13 +358,15 @@ export default function WatchNowPage() {
                         )}
                       </dl>
 
-                      {/* Expandable: country, production, actors, tagline, languages, budget, etc. */}
+                      {/* Expandable: same fields as movie — release date, runtime, country, production, cast, tagline, languages, budget, revenue, status, IMDB */}
                       {(media.release_date ||
+                        media.first_air_date ||
                         (media.runtime != null && media.runtime > 0) ||
                         media.number_of_seasons != null ||
                         media.number_of_episodes != null ||
                         media.original_language ||
                         (media.original_title && media.original_title !== media.title) ||
+                        (media.original_name && media.original_name !== media.name && media.original_name !== media.title) ||
                         (Array.isArray(media.production_countries) && media.production_countries.length > 0) ||
                         (Array.isArray(media.origin_country) && media.origin_country.length > 0) ||
                         (Array.isArray(media.production_companies) && media.production_companies.length > 0) ||
@@ -366,7 +376,8 @@ export default function WatchNowPage() {
                         (Array.isArray(media.spoken_languages) && media.spoken_languages.length > 0) ||
                         (media.budget != null && media.budget > 0) ||
                         (media.revenue != null && media.revenue > 0) ||
-                        media.status) && (
+                        media.status ||
+                        media.imdb_id) && (
                           <div className="mt-6 pt-4 border-t border-gray-700">
                             <button
                               type="button"
@@ -379,10 +390,10 @@ export default function WatchNowPage() {
                             </button>
                             {infoExpanded && (
                               <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
-                                {media.release_date && (
+                                {(media.release_date || media.first_air_date) && (
                                   <>
-                                    <dt className="text-gray-500">Release date</dt>
-                                    <dd className="text-gray-300">{media.release_date}</dd>
+                                    <dt className="text-gray-500">{isTv ? 'First air date' : 'Release date'}</dt>
+                                    <dd className="text-gray-300">{media.first_air_date || media.release_date}</dd>
                                   </>
                                 )}
                                 {media.runtime != null && media.runtime > 0 && (
@@ -409,12 +420,12 @@ export default function WatchNowPage() {
                                     <dd className="text-gray-300">{media.original_language}</dd>
                                   </>
                                 )}
-                                {media.original_title && media.original_title !== media.title && (
+                                {(media.original_title && media.original_title !== media.title) || (media.original_name && media.original_name !== (media.name || media.title)) ? (
                                   <>
                                     <dt className="text-gray-500">Original title</dt>
-                                    <dd className="text-gray-300">{media.original_title}</dd>
+                                    <dd className="text-gray-300">{media.original_title || media.original_name}</dd>
                                   </>
-                                )}
+                                ) : null}
                                 {media.tagline && (
                                   <>
                                     <dt className="text-gray-500">Tagline</dt>
@@ -472,6 +483,21 @@ export default function WatchNowPage() {
                                   <>
                                     <dt className="text-gray-500">Status</dt>
                                     <dd className="text-gray-300">{media.status}</dd>
+                                  </>
+                                )}
+                                {media.imdb_id && (
+                                  <>
+                                    <dt className="text-gray-500">IMDB</dt>
+                                    <dd className="text-gray-300">
+                                      <a
+                                        href={`https://www.imdb.com/title/${media.imdb_id}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-amber-400 hover:text-amber-300"
+                                      >
+                                        {media.imdb_id}
+                                      </a>
+                                    </dd>
                                   </>
                                 )}
                                 {(Array.isArray(media.credits?.cast) ? media.credits.cast : Array.isArray(media.cast) ? media.cast : []).length > 0 && (
